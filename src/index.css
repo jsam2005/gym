@@ -1,0 +1,465 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@layer base {
+  :root {
+    --background: 255 255 255;
+    --foreground: 43 49 11;
+    --card: 255 255 255;
+    --card-foreground: 43 49 11;
+    --popover: 255 255 255;
+    --popover-foreground: 43 49 11;
+    --primary: 43 49 11;
+    --primary-foreground: 255 255 255;
+    --secondary: 245 245 245;
+    --secondary-foreground: 43 49 11;
+    --muted: 245 245 245;
+    --muted-foreground: 100 100 100;
+    --accent: 43 49 11;
+    --accent-foreground: 255 255 255;
+    --destructive: 239 68 68;
+    --destructive-foreground: 255 255 255;
+    --border: 229 231 235;
+    --input: 255 255 255;
+    --ring: 43 49 11;
+    --sidebar: 43 49 11;
+    --sidebar-foreground: 255 255 255;
+    --sidebar-active: 60 66 20;
+    --sidebar-active-foreground: 255 255 255;
+    --radius: 0.5rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', sans-serif;
+  }
+}
+
+/* Custom gym card styling */
+.gym-card {
+  @apply bg-white border border-gray-200 rounded-lg shadow-sm text-gray-900;
+}
+
+/* Form styling - remove yellow backgrounds and autocomplete */
+input, textarea, select {
+  background-color: white !important;
+  border: 1px solid #d1d5db !important;
+  color: rgb(43, 49, 11) !important;
+}
+
+/* Remove yellow autocomplete background */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px white inset !important;
+  -webkit-text-fill-color: rgb(43, 49, 11) !important;
+  background-color: white !important;
+  transition: background-color 5000s ease-in-out 0s !important;
+}
+
+/* Remove yellow from all input states */
+input[type="text"],
+input[type="email"],
+input[type="tel"],
+input[type="number"],
+input[type="password"],
+textarea,
+select {
+  background-color: white !important;
+  background-image: none !important;
+  -webkit-box-shadow: none !important;
+  box-shadow: none !important;
+}
+
+/* Additional autocomplete override */
+input:-internal-autofill-selected {
+  background-color: white !important;
+  background-image: none !important;
+  color: rgb(43, 49, 11) !important;
+}
+
+/* Force override any yellow backgrounds */
+*[style*="background-color: yellow"],
+*[style*="background: yellow"],
+*[class*="bg-yellow"] {
+  background-color: white !important;
+}
+
+/* Remove any yellow text colors */
+*[style*="color: yellow"],
+*[class*="text-yellow"] {
+  color: rgb(43, 49, 11) !important;
+}
+
+/* Override browser default yellow highlights */
+input::-webkit-contacts-auto-fill-button,
+input::-webkit-credentials-auto-fill-button {
+  visibility: hidden;
+  display: none !important;
+  pointer-events: none;
+  height: 0;
+  width: 0;
+  margin: 0;
+}
+
+/* Focus states */
+input:focus, textarea:focus, select:focus {
+  outline: none !important;
+  border-color: rgb(43, 49, 11) !important;
+  box-shadow: 0 0 0 2px rgba(43, 49, 11, 0.1) !important;
+  background-color: white !important;
+}
+
+/* Dropdown/Select specific - remove yellow backgrounds */
+[role="combobox"],
+[data-radix-select-trigger] {
+  background-color: white !important;
+  border: 1px solid #d1d5db !important;
+}
+
+[data-radix-select-content] {
+  background-color: white !important;
+  border: 1px solid #d1d5db !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
+}
+
+[data-radix-select-item] {
+  background-color: white !important;
+  color: #000000 !important;
+}
+
+[data-radix-select-item]:hover,
+[data-radix-select-item][data-highlighted] {
+  background-color: #6b7280 !important;
+  color: white !important;
+}
+
+[data-radix-select-item]:focus,
+[data-radix-select-item][data-state="checked"] {
+  background-color: #6b7280 !important;
+  color: white !important;
+}
+
+/* Selected item styling */
+[data-radix-select-item][aria-selected="true"] {
+  background-color: #6b7280 !important;
+  color: white !important;
+}
+
+/* Trigger text color */
+[data-radix-select-trigger] {
+  background-color: white !important;
+  border: 1px solid #d1d5db !important;
+  color: #000000 !important;
+}
+
+/* Selected value text in trigger */
+[data-radix-select-value] {
+  color: #000000 !important;
+}
+
+/* Placeholder text */
+[data-radix-select-trigger] [data-placeholder] {
+  color: #6b7280 !important;
+}
+
+/* Ensure trigger content is visible */
+[data-radix-select-trigger] > span {
+  color: #000000 !important;
+}
+
+/* Selected value text in trigger */
+[data-radix-select-value] {
+  color: #000000 !important;
+}
+
+/* Placeholder text */
+[data-radix-select-trigger] [data-placeholder] {
+  color: #6b7280 !important;
+}
+
+/* Ensure trigger content is visible */
+[data-radix-select-trigger] > span {
+  color: #000000 !important;
+}
+
+/* Selected value text in trigger */
+[data-radix-select-value] {
+  color: #000000 !important;
+}
+
+/* Placeholder text */
+[data-radix-select-trigger] [data-placeholder] {
+  color: #6b7280 !important;
+}
+
+/* Ensure trigger content is visible */
+[data-radix-select-trigger] > span {
+  color: #000000 !important;
+}
+
+/* Override any yellow backgrounds */
+[role="option"],
+[role="listbox"] > *,
+div[data-radix-select-content] > div > * {
+  background-color: white !important;
+  color: #000000 !important;
+}
+
+[data-radix-collection-item] {
+  background-color: white !important;
+  color: #000000 !important;
+}
+
+[data-radix-collection-item]:hover,
+[data-radix-collection-item][data-highlighted] {
+  background-color: #6b7280 !important;
+  color: white !important;
+}
+
+/* Button styling - remove yellow */
+button {
+  background-color: rgb(43, 49, 11) !important;
+  color: white !important;
+  border: none !important;
+}
+
+button:hover {
+  background-color: rgb(60, 66, 20) !important;
+}
+
+/* Table styling - remove yellow borders */
+table {
+  background-color: white !important;
+  border: 1px solid #d1d5db !important;
+}
+
+th, td {
+  background-color: white !important;
+  color: rgb(43, 49, 11) !important;
+  border: 1px solid #d1d5db !important;
+}
+
+/* Remove yellow table row borders */
+tr {
+  border-bottom: 1px solid #d1d5db !important;
+}
+
+/* Table header styling */
+thead th {
+  background-color: #f9fafb !important;
+  border-bottom: 2px solid #d1d5db !important;
+}
+
+/* Remove any yellow styling from table elements */
+.table-row,
+.table-cell,
+[role="row"],
+[role="cell"],
+[role="columnheader"] {
+  border-color: #d1d5db !important;
+}
+
+/* Remove yellow selection colors */
+::selection {
+  background-color: rgba(43, 49, 11, 0.2);
+  color: rgb(43, 49, 11);
+}
+
+::-moz-selection {
+  background-color: rgba(43, 49, 11, 0.2);
+  color: rgb(43, 49, 11);
+}
+
+/* Remove yellow focus outlines */
+*:focus {
+  outline: none;
+}
+
+*:focus-visible {
+  outline: 2px solid rgb(43, 49, 11);
+  outline-offset: 2px;
+}
+
+/* Remove yellow from links and buttons */
+a:focus,
+button:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(43, 49, 11, 0.5);
+}
+
+/* Ensure main content area has white background */
+.main-content {
+  background-color: white !important;
+  color: rgb(43, 49, 11) !important;
+}
+
+/* Package form specific styling */
+.package-form {
+  background-color: white !important;
+  padding: 2rem;
+  border-radius: 0.5rem;
+  border: 1px solid #e5e7eb;
+}
+
+.package-form input,
+.package-form textarea {
+  background-color: white !important;
+  border: 1px solid #d1d5db !important;
+  color: rgb(43, 49, 11) !important;
+  padding: 0.75rem;
+  border-radius: 0.375rem;
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Page transition animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInFromLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInFromRight {
+  from {
+    opacity: 0;
+    transform: translateX(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Animation classes */
+.animate-fade-in {
+  animation: fadeIn 0.6s ease-out forwards;
+}
+
+.animate-slide-in-left {
+  animation: slideInFromLeft 0.5s ease-out forwards;
+}
+
+.animate-slide-in-right {
+  animation: slideInFromRight 0.5s ease-out forwards;
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.4s ease-out forwards;
+}
+
+/* Stagger animation delays */
+.animate-delay-100 { animation-delay: 0.1s; }
+.animate-delay-200 { animation-delay: 0.2s; }
+.animate-delay-300 { animation-delay: 0.3s; }
+.animate-delay-400 { animation-delay: 0.4s; }
+
+/* Hover animations */
+.hover-lift {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+}
+
+/* Loading skeleton shimmer */
+@keyframes shimmer {
+  0% {
+    background-position: -200px 0;
+  }
+  100% {
+    background-position: calc(200px + 100%) 0;
+  }
+}
+
+.shimmer {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200px 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* Clean select dropdown styling */
+[data-radix-select-content] {
+  background-color: white !important;
+  border: 1px solid #d1d5db !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
+}
+
+[data-radix-select-item] {
+  background-color: white !important;
+  color: #000000 !important;
+}
+
+[data-radix-select-item]:hover,
+[data-radix-select-item][data-highlighted] {
+  background-color: #6b7280 !important;
+  color: white !important;
+}
+
+[data-radix-select-item]:focus,
+[data-radix-select-item][data-state="checked"] {
+  background-color: #6b7280 !important;
+  color: white !important;
+}
+
+[data-radix-select-trigger] {
+  background-color: white !important;
+  border: 1px solid #d1d5db !important;
+  color: #000000 !important;
+}
+
+[data-radix-select-value] {
+  color: #000000 !important;
+}
+
+[data-radix-select-trigger] [data-placeholder] {
+  color: #6b7280 !important;
+}
+
+/* Remove yellow backgrounds globally */
+*[style*="background-color: yellow"],
+*[style*="background: yellow"] {
+  background-color: white !important;
+}
+

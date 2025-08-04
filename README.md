@@ -135,13 +135,6 @@ The app uses Vite configuration in `vite.config.ts`:
 - **Custom CSS** for specific gym-themed styling
 - **Responsive design** with mobile-first approach
 
-## 🚀 Deployment
-
-### Using Lovable (Recommended)
-1. Visit [Lovable Project](https://lovable.dev/projects/9ecb95b7-9257-4b94-96eb-bd144a115de0)
-2. Click Share → Publish
-3. Your app will be deployed automatically
-
 ### Manual Deployment
 ```bash
 # Build for production
