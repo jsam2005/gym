@@ -1,0 +1,13 @@
+[
+  {
+    "userId": "USER001",
+    "name": "John Doe",
+    "firstName": "John",
+    "lastName": "Doe",
+    "email": "john.doe@example.com",
+    "phone": "123-456-7890",
+    "packageType": "monthly",
+    "packageStartDate": "2024-01-01",
+    "packageEndDate": "2024-12-31"
+  }
+]

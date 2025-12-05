@@ -1,0 +1,3 @@
+userId,name,firstName,lastName,email,phone,packageType,packageStartDate,packageEndDate
+USER001,John Doe,John,Doe,john.doe@example.com,123-456-7890,monthly,2024-01-01,2024-12-31
+USER002,Jane Smith,Jane,Smith,jane.smith@example.com,123-456-7891,monthly,2024-01-01,2024-12-31

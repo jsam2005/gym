@@ -1,0 +1,578 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 255 255 255;
+    --foreground: 226 232 240;
+    --card: 30 41 59;
+    --card-foreground: 241 245 249;
+    --popover: 30 41 59;
+    --popover-foreground: 241 245 249;
+    --primary: 6 182 212;
+    --primary-foreground: 255 255 255;
+    --secondary: 51 65 85;
+    --secondary-foreground: 241 245 249;
+    --muted: 51 65 85;
+    --muted-foreground: 148 163 184;
+    --accent: 6 182 212;
+    --accent-foreground: 255 255 255;
+    --destructive: 239 68 68;
+    --destructive-foreground: 255 255 255;
+    --border: 51 65 85;
+    --input: 30 41 59;
+    --ring: 6 182 212;
+    --sidebar: 255 255 255;
+    --sidebar-foreground: 0 0 0;
+    --sidebar-active: 6 182 212;
+    --sidebar-active-foreground: 255 255 255;
+    --radius: 0.75rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply text-foreground;
+    font-family: 'Inter', sans-serif;
+    position: relative;
+    min-height: 100vh;
+  }
+  
+  /* Background image with overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: url('/bg_img.jpg');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    opacity: 0.8;
+    z-index: -1;
+  }
+  
+  /* Dark overlay for better readability */
+  body::after {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, rgba(17, 24, 39, 0.88) 0%, rgba(30, 41, 59, 0.82) 100%);
+    z-index: -1;
+  }
+  
+  /* Ensure content is above background */
+  body > * {
+    position: relative;
+    z-index: 1;
+  }
+}
+
+/* Custom gym card styling */
+.gym-card {
+  background: rgba(30, 41, 59, 0.85) !important;
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(51, 65, 85, 0.6) !important;
+  border-radius: 0.75rem !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important;
+  color: rgb(241, 245, 249) !important;
+}
+
+/* Form styling - dark theme */
+input, textarea, select {
+  background-color: rgba(51, 65, 85, 0.5) !important;
+  border: 1px solid rgba(71, 85, 105, 0.6) !important;
+  color: rgb(226, 232, 240) !important;
+}
+
+/* Dark autocomplete background */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px rgba(51, 65, 85, 0.9) inset !important;
+  -webkit-text-fill-color: rgb(226, 232, 240) !important;
+  background-color: rgba(51, 65, 85, 0.5) !important;
+  transition: background-color 5000s ease-in-out 0s !important;
+}
+
+/* Input states - dark theme */
+input[type="text"],
+input[type="email"],
+input[type="tel"],
+input[type="number"],
+input[type="password"],
+input[type="date"],
+textarea,
+select {
+  background-color: rgba(51, 65, 85, 0.5) !important;
+  background-image: none !important;
+  -webkit-box-shadow: none !important;
+  box-shadow: none !important;
+}
+
+/* Additional autocomplete override */
+input:-internal-autofill-selected {
+  background-color: rgba(51, 65, 85, 0.5) !important;
+  background-image: none !important;
+  color: rgb(226, 232, 240) !important;
+}
+
+/* Dark mode overrides */
+*[class*="bg-white"]:not(.gym-card):not(button) {
+  background-color: rgba(30, 41, 59, 0.7) !important;
+}
+
+*[class*="text-gray-900"],
+*[class*="text-black"] {
+  color: rgb(226, 232, 240) !important;
+}
+
+/* Override browser default yellow highlights */
+input::-webkit-contacts-auto-fill-button,
+input::-webkit-credentials-auto-fill-button {
+  visibility: hidden;
+  display: none !important;
+  pointer-events: none;
+  height: 0;
+  width: 0;
+  margin: 0;
+}
+
+/* Focus states */
+input:focus, textarea:focus, select:focus {
+  outline: none !important;
+  border-color: rgb(6, 182, 212) !important;
+  box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.25) !important;
+  background-color: rgba(51, 65, 85, 0.7) !important;
+}
+
+/* Dropdown/Select specific - dark theme */
+[role="combobox"],
+[data-radix-select-trigger] {
+  background-color: rgba(51, 65, 85, 0.5) !important;
+  border: 1px solid rgba(71, 85, 105, 0.6) !important;
+}
+
+/* Dark theme collection items */
+[role="option"],
+[role="listbox"] > *,
+div[data-radix-select-content] > div > * {
+  background-color: transparent !important;
+  color: rgb(226, 232, 240) !important;
+}
+
+[data-radix-collection-item] {
+  background-color: transparent !important;
+  color: rgb(226, 232, 240) !important;
+}
+
+[data-radix-collection-item]:hover,
+[data-radix-collection-item][data-highlighted] {
+  background-color: rgba(6, 182, 212, 0.25) !important;
+  color: rgb(255, 255, 255) !important;
+}
+
+/* Button styling - modern theme */
+button {
+  background: linear-gradient(135deg, rgb(6, 182, 212) 0%, rgb(8, 145, 178) 100%) !important;
+  color: white !important;
+  border: none !important;
+  font-weight: 600 !important;
+  transition: all 0.3s ease !important;
+}
+
+button:hover {
+  background: linear-gradient(135deg, rgb(8, 145, 178) 0%, rgb(14, 116, 144) 100%) !important;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(6, 182, 212, 0.5) !important;
+}
+
+/* Table styling - dark theme */
+table {
+  background-color: rgba(30, 41, 59, 0.6) !important;
+  border: 1px solid rgba(51, 65, 85, 0.6) !important;
+}
+
+th, td {
+  background-color: transparent !important;
+  color: rgb(226, 232, 240) !important;
+  border: 1px solid rgba(51, 65, 85, 0.4) !important;
+}
+
+/* Table row borders */
+tr {
+  border-bottom: 1px solid rgba(51, 65, 85, 0.4) !important;
+}
+
+tr:hover {
+  background-color: rgba(51, 65, 85, 0.3) !important;
+}
+
+/* Table header styling */
+thead th {
+  background-color: rgba(51, 65, 85, 0.5) !important;
+  border-bottom: 2px solid rgba(71, 85, 105, 0.6) !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+  font-size: 0.875rem !important;
+}
+
+/* Dark theme table elements */
+.table-row,
+.table-cell,
+[role="row"],
+[role="cell"],
+[role="columnheader"] {
+  border-color: rgba(51, 65, 85, 0.4) !important;
+}
+
+/* Selection colors */
+::selection {
+  background-color: rgba(6, 182, 212, 0.35);
+  color: rgb(255, 255, 255);
+}
+
+::-moz-selection {
+  background-color: rgba(6, 182, 212, 0.35);
+  color: rgb(255, 255, 255);
+}
+
+/* Focus outlines */
+*:focus {
+  outline: none;
+}
+
+*:focus-visible {
+  outline: 2px solid rgb(6, 182, 212);
+  outline-offset: 2px;
+}
+
+/* Links and buttons focus */
+a:focus,
+button:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.3);
+}
+
+/* Ensure main content area is transparent to show background */
+.main-content {
+  background-color: transparent !important;
+  color: rgb(226, 232, 240) !important;
+}
+
+/* Fix content visibility issues */
+.main-content * {
+  color: rgb(226, 232, 240) !important;
+}
+
+/* Ensure text is visible on dark background */
+h1, h2, h3, h4, h5, h6 {
+  color: rgb(241, 245, 249) !important;
+}
+
+/* Fix table content visibility */
+.gym-card {
+  background: rgba(30, 41, 59, 0.85) !important;
+  color: rgb(241, 245, 249) !important;
+}
+
+.gym-card * {
+  color: rgb(241, 245, 249) !important;
+}
+
+/* Ensure all text in main content is visible */
+main * {
+  color: rgb(226, 232, 240) !important;
+}
+
+/* Status badge styling for dark theme */
+.text-emerald-600 {
+  color: rgb(34, 197, 94) !important;
+}
+
+.text-red-600 {
+  color: rgb(220, 38, 38) !important;
+}
+
+/* Ensure status text is visible in tables */
+.gym-card .text-emerald-600,
+.gym-card .text-red-600 {
+  color: rgb(34, 197, 94) !important;
+}
+
+.gym-card .text-red-600 {
+  color: rgb(220, 38, 38) !important;
+}
+
+/* Package form specific styling */
+.package-form {
+  background: rgba(30, 41, 59, 0.85) !important;
+  backdrop-filter: blur(12px);
+  padding: 2rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(51, 65, 85, 0.6);
+}
+
+.package-form input,
+.package-form textarea {
+  background-color: rgba(51, 65, 85, 0.5) !important;
+  border: 1px solid rgba(71, 85, 105, 0.6) !important;
+  color: rgb(226, 232, 240) !important;
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Page transition animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInFromLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInFromRight {
+  from {
+    opacity: 0;
+    transform: translateX(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Animation classes */
+.animate-fade-in {
+  animation: fadeIn 0.6s ease-out forwards;
+}
+
+.animate-slide-in-left {
+  animation: slideInFromLeft 0.5s ease-out forwards;
+}
+
+.animate-slide-in-right {
+  animation: slideInFromRight 0.5s ease-out forwards;
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.4s ease-out forwards;
+}
+
+/* Stagger animation delays */
+.animate-delay-100 { animation-delay: 0.1s; }
+.animate-delay-200 { animation-delay: 0.2s; }
+.animate-delay-300 { animation-delay: 0.3s; }
+.animate-delay-400 { animation-delay: 0.4s; }
+
+/* Hover animations */
+.hover-lift {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+}
+
+/* Loading skeleton shimmer */
+@keyframes shimmer {
+  0% {
+    background-position: -200px 0;
+  }
+  100% {
+    background-position: calc(200px + 100%) 0;
+  }
+}
+
+.shimmer {
+  background: linear-gradient(90deg, rgba(51, 65, 85, 0.3) 25%, rgba(71, 85, 105, 0.3) 50%, rgba(51, 65, 85, 0.3) 75%);
+  background-size: 200px 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* Custom scrollbar for modern look */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(30, 41, 59, 0.5);
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, rgba(6, 182, 212, 0.7), rgba(8, 145, 178, 0.9));
+  border-radius: 5px;
+  transition: background 0.3s;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, rgba(6, 182, 212, 1), rgba(8, 145, 178, 1));
+}
+
+/* Headings */
+h1, h2, h3, h4, h5, h6 {
+  color: rgb(241, 245, 249) !important;
+  font-weight: 700;
+}
+
+/* Labels */
+label {
+  color: rgb(226, 232, 240) !important;
+  font-weight: 500;
+}
+
+/* Placeholder text */
+::placeholder {
+  color: rgb(148, 163, 184) !important;
+  opacity: 0.6;
+}
+
+:-ms-input-placeholder {
+  color: rgb(148, 163, 184) !important;
+}
+
+::-ms-input-placeholder {
+  color: rgb(148, 163, 184) !important;
+}
+
+/* Dark select dropdown styling */
+[data-radix-select-content] {
+  background: rgba(30, 41, 59, 0.95) !important;
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(71, 85, 105, 0.6) !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4) !important;
+}
+
+[data-radix-select-item] {
+  background-color: transparent !important;
+  color: rgb(226, 232, 240) !important;
+  transition: all 0.2s ease;
+}
+
+[data-radix-select-item]:hover,
+[data-radix-select-item][data-highlighted] {
+  background-color: rgba(6, 182, 212, 0.25) !important;
+  color: rgb(255, 255, 255) !important;
+}
+
+[data-radix-select-item]:focus,
+[data-radix-select-item][data-state="checked"] {
+  background-color: rgba(6, 182, 212, 0.35) !important;
+  color: rgb(255, 255, 255) !important;
+}
+
+[data-radix-select-trigger] {
+  background-color: rgba(51, 65, 85, 0.5) !important;
+  border: 1px solid rgba(71, 85, 105, 0.6) !important;
+  color: rgb(226, 232, 240) !important;
+}
+
+[data-radix-select-value] {
+  color: rgb(226, 232, 240) !important;
+}
+
+[data-radix-select-trigger] [data-placeholder] {
+  color: rgb(148, 163, 184) !important;
+}
+
+/* Remove yellow backgrounds globally */
+*[style*="background-color: yellow"],
+*[style*="background: yellow"] {
+  background-color: white !important;
+}
+
+  /* Force sidebar text to be white - ULTRA SPECIFIC */
+  div[class*="w-64"][class*="h-screen"] {
+    color: white !important;
+  }
+
+  div[class*="w-64"][class*="h-screen"] * {
+    color: white !important;
+  }
+
+  /* Ensure all sidebar text is white and visible */
+  div[class*="w-64"][class*="h-screen"] span,
+  div[class*="w-64"][class*="h-screen"] button,
+  div[class*="w-64"][class*="h-screen"] a {
+    color: white !important;
+  }
+
+div[class*="w-64"][class*="h-screen"] .text-white {
+  color: white !important;
+}
+
+div[class*="w-64"][class*="h-screen"] .text-gray-700,
+div[class*="w-64"][class*="h-screen"] .text-gray-600,
+div[class*="w-64"][class*="h-screen"] .text-gray-800 {
+  color: white !important;
+}
+
+/* Override ALL sidebar backgrounds */
+.bg-sidebar,
+[class*="bg-sidebar"],
+div[class*="bg-sidebar"] {
+  background-color: white !important;
+}
+
+.bg-sidebar *,
+[class*="bg-sidebar"] *,
+div[class*="bg-sidebar"] * {
+  color: black !important;
+}
+
+/* Force white background on sidebar container */
+.w-64.h-screen {
+  background-color: white !important;
+}
+
+.w-64.h-screen * {
+  color: black !important;
+}
+

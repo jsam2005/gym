@@ -1,0 +1,187 @@
+@startuml Gym Management System Architecture
+
+!theme plain
+skinparam backgroundColor #ffffff
+skinparam componentBackgroundColor #f8f9fa
+skinparam componentBorderColor #dee2e6
+skinparam componentFontColor #212529
+skinparam databaseBackgroundColor #e3f2fd
+skinparam databaseBorderColor #2196f3
+skinparam noteBackgroundColor #f8f9fa
+skinparam noteBorderColor #6c757d
+skinparam noteFontColor #495057
+
+title Gym Management System - Architecture & Flow
+
+' External Systems
+actor "Gym Admin" as Admin
+actor "Gym Member" as Member
+actor "ESSL K30 Pro\nBiometric Device" as Device
+
+' Frontend Layer
+package "Frontend (React + Vite)" {
+  component "Dashboard" as Dashboard
+  component "Client Management" as ClientMgmt
+  component "Biometric Access" as BiometricUI
+  component "Package Management" as PackageMgmt
+  component "Billing System" as Billing
+  component "Real-time UI\n(Socket.IO Client)" as RealtimeUI
+}
+
+' API Gateway & Middleware
+package "Backend API (Node.js + Express)" {
+  component "REST API Routes" as APIRoutes
+  component "WebSocket Server" as WSServer
+  component "Authentication\nMiddleware" as Auth
+  component "Error Handler" as ErrorHandler
+}
+
+' Business Logic Layer
+package "Controllers & Services" {
+  component "Client Controller" as ClientCtrl
+  component "Biometric Controller" as BiometricCtrl
+  component "Package Controller" as PackageCtrl
+  component "ESSL Device Service" as ESSLService
+  component "Access Control Service" as AccessService
+  component "Sync Scheduler" as Scheduler
+}
+
+' Data Layer
+package "Database Layer" {
+  database "MongoDB" as MongoDB {
+    component "Clients Collection" as ClientsDB
+    component "Access Logs Collection" as LogsDB
+    component "Packages Collection" as PackagesDB
+    component "Users Collection" as UsersDB
+    component "Settings Collection" as SettingsDB
+  }
+}
+
+' External Hardware
+package "Hardware Integration" {
+  component "ESSL K30 Pro\nFingerprint Scanner" as ESSLDevice
+  component "Door Lock System" as DoorLock
+}
+
+' Background Jobs
+package "Background Jobs" {
+  component "Access Control Job\n(Daily 1 AM)" as AccessJob
+  component "Sync Scheduler\n(Every 5 min)" as SyncJob
+}
+
+' User Interactions
+Admin --> Dashboard : "View Analytics"
+Admin --> ClientMgmt : "Manage Members"
+Admin --> BiometricUI : "Enroll Fingerprints"
+Admin --> PackageMgmt : "Manage Packages"
+Admin --> Billing : "Process Payments"
+
+' Frontend to Backend
+Dashboard --> APIRoutes : "GET /api/clients/stats"
+ClientMgmt --> APIRoutes : "CRUD Operations"
+BiometricUI --> APIRoutes : "Biometric Operations"
+PackageMgmt --> APIRoutes : "Package CRUD"
+Billing --> APIRoutes : "Payment Processing"
+RealtimeUI --> WSServer : "WebSocket Connection"
+
+' API Layer
+APIRoutes --> Auth : "Authentication"
+APIRoutes --> ClientCtrl : "Client Operations"
+APIRoutes --> BiometricCtrl : "Biometric Operations"
+APIRoutes --> PackageCtrl : "Package Operations"
+APIRoutes --> ErrorHandler : "Error Handling"
+
+' Controller to Services
+ClientCtrl --> ClientsDB : "CRUD Operations"
+BiometricCtrl --> ESSLService : "Device Communication"
+BiometricCtrl --> AccessService : "Access Validation"
+PackageCtrl --> PackagesDB : "Package Management"
+
+' ESSL Device Integration
+ESSLService --> ESSLDevice : "Register Users"
+ESSLService --> ESSLDevice : "Enroll Fingerprints"
+ESSLService --> ESSLDevice : "Access Validation"
+ESSLDevice --> BiometricCtrl : "Webhook Callback"
+ESSLDevice --> DoorLock : "Open/Close Door"
+
+' Real-time Updates
+WSServer --> RealtimeUI : "Access Attempts"
+WSServer --> RealtimeUI : "Fingerprint Enrolled"
+WSServer --> RealtimeUI : "System Notifications"
+
+' Data Flow
+AccessService --> ClientsDB : "Validate Client"
+AccessService --> LogsDB : "Log Access Attempts"
+ESSLService --> ClientsDB : "Update Client Status"
+Scheduler --> ClientsDB : "Check Expired Packages"
+SyncJob --> LogsDB : "Sync Device Logs"
+
+' Background Jobs
+AccessJob --> ESSLDevice : "Disable Expired Access"
+AccessJob --> ClientsDB : "Update Expired Status"
+SyncJob --> ESSLDevice : "Sync Device Data"
+SyncJob --> LogsDB : "Update Access Statistics"
+
+' Member Access Flow
+note right of Member
+  **Member Access Process:**
+  1. Member scans fingerprint on ESSL device
+  2. Device sends webhook to backend
+  3. System validates:
+     - Package not expired
+     - Access is active
+     - No pending payments
+     - Current time within schedule
+  4. Door opens if validation passes
+  5. Access attempt logged
+  6. Real-time notification sent to admin
+end note
+
+Member --> ESSLDevice : "Scan Fingerprint"
+ESSLDevice --> BiometricCtrl : "POST /api/biometric/webhook"
+BiometricCtrl --> AccessService : "Validate Access"
+AccessService --> ClientsDB : "Check Client Status"
+AccessService --> LogsDB : "Log Attempt"
+BiometricCtrl --> ESSLDevice : "Open Door Command"
+ESSLDevice --> DoorLock : "Unlock Door"
+
+' System Architecture Notes
+note top of Dashboard
+  **Frontend Features:**
+  - Modern React UI with Tailwind CSS
+  - Real-time updates via WebSocket
+  - Responsive design
+  - KPI dashboards
+  - Client management
+  - Biometric enrollment interface
+end note
+
+note top of ESSLDevice
+  **ESSL K30 Pro Features:**
+  - Fingerprint scanning
+  - User registration
+  - Time-based access control
+  - Webhook integration
+  - Door control
+end note
+
+note bottom of MongoDB
+  **Database Collections:**
+  - Clients: Member data & access control
+  - AccessLogs: All access attempts
+  - Packages: Subscription plans
+  - Users: Admin/staff accounts
+  - Settings: Gym configuration
+end note
+
+' Deployment Architecture
+package "Deployment" {
+  component "Frontend\n(Vercel/Render)" as FrontendDeploy
+  component "Backend API\n(Render/Heroku)" as BackendDeploy
+  component "MongoDB Atlas\n(Cloud Database)" as CloudDB
+}
+
+FrontendDeploy --> BackendDeploy : "API Calls"
+BackendDeploy --> CloudDB : "Database Operations"
+
+@enduml

@@ -1,0 +1,44 @@
+services:
+  - type: web
+    name: gym-api
+    runtime: node
+    region: singapore
+    plan: free
+    branch: main
+    rootDir: backend
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: FRONTEND_URL
+        sync: false
+      - key: ESSL_DEVICE_IP
+        sync: false
+      - key: ESSL_DEVICE_PORT
+        value: 4370
+      - key: ESSL_DEVICE_PASSWORD
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
