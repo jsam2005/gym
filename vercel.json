@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "buildCommand": "cd backend && NODE_ENV=development npm install && npm run build && cd ../frontend && npm install && npm run build",
+  "buildCommand": "cd backend && npm install && npm run build && cd ../frontend && npm install && npx vite build",
   "outputDirectory": "frontend/dist",
   "rewrites": [
     {
