@@ -48,8 +48,11 @@ app.use(express.text({ type: ['text/plain', 'text/html', 'application/x-www-form
 app.use(morgan('dev'));
 
 // Initialize database connection (non-blocking)
+// Note: In serverless, connection is per-request, so we don't pre-connect
+// The database connection will be established when needed
 connectDB().catch(err => {
-  console.warn('Database connection warning:', err.message);
+  console.error('Database connection error:', err.message);
+  console.error('Stack:', err.stack);
 });
 
 // Routes
@@ -69,25 +72,96 @@ app.post('/iclock/cdata.aspx', handleIClockCData);
 app.get('/iclock/getrequest.aspx', handleIClockGetRequest);
 app.post('/iclock/getrequest.aspx', handleIClockGetRequest);
 
-// Health check
+// Health check with database status
 app.get('/api/health', async (req, res) => {
   try {
+    const dbConfig = {
+      server: process.env.ETIME_SQL_SERVER || 'not set',
+      database: process.env.ETIME_SQL_DB || 'not set',
+      user: process.env.ETIME_SQL_USER || 'not set',
+      sqlDisabled: process.env.SQL_DISABLED || 'not set',
+      useApiOnly: process.env.USE_API_ONLY || 'not set',
+    };
+    
+    // Try to test database connection
+    let dbStatus = 'unknown';
+    try {
+      const { getPool } = await import('../backend/dist/config/database.js');
+      const pool = getPool();
+      dbStatus = pool.connected ? 'connected' : 'not connected';
+    } catch (dbError) {
+      dbStatus = `error: ${dbError.message}`;
+    }
+    
     res.json({ 
       status: 'OK', 
       message: 'Server is running', 
       timestamp: new Date(),
       platform: 'Vercel Serverless',
+      database: {
+        configured: !!process.env.ETIME_SQL_SERVER,
+        server: dbConfig.server,
+        database: dbConfig.database,
+        sqlDisabled: dbConfig.sqlDisabled,
+        useApiOnly: dbConfig.useApiOnly,
+        connectionStatus: dbStatus,
+      },
+      environment: {
+        nodeEnv: process.env.NODE_ENV,
+        frontendUrl: process.env.FRONTEND_URL || 'not set',
+      },
     });
   } catch (error) {
-    res.json({ 
-      status: 'OK', 
-      message: 'Server is running', 
+    res.status(500).json({ 
+      status: 'ERROR', 
+      message: 'Server error', 
       timestamp: new Date(),
+      error: error.message,
+      stack: process.env.NODE_ENV !== 'production' ? error.stack : undefined,
     });
   }
 });
 
-// Error handling
+// Debug endpoint to check environment variables (without sensitive data)
+app.get('/api/debug', (req, res) => {
+  res.json({
+    env: {
+      ETIME_SQL_SERVER: process.env.ETIME_SQL_SERVER ? '***set***' : 'not set',
+      ETIME_SQL_DB: process.env.ETIME_SQL_DB || 'not set',
+      ETIME_SQL_USER: process.env.ETIME_SQL_USER || 'not set',
+      ETIME_SQL_PASSWORD: process.env.ETIME_SQL_PASSWORD ? '***set***' : 'not set',
+      SQL_DISABLED: process.env.SQL_DISABLED || 'not set',
+      USE_API_ONLY: process.env.USE_API_ONLY || 'not set',
+      FRONTEND_URL: process.env.FRONTEND_URL || 'not set',
+      NODE_ENV: process.env.NODE_ENV || 'not set',
+    },
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// Enhanced error handling for serverless
+app.use((err, req, res, next) => {
+  console.error('API Error:', {
+    message: err.message,
+    stack: err.stack,
+    path: req.path,
+    method: req.method,
+    timestamp: new Date().toISOString(),
+  });
+  
+  // Send error response
+  res.status(err.statusCode || 500).json({
+    success: false,
+    message: err.message || 'Internal Server Error',
+    path: req.path,
+    ...(process.env.NODE_ENV !== 'production' && { 
+      stack: err.stack,
+      details: err.details 
+    }),
+  });
+});
+
+// Error handler middleware
 app.use(errorHandler);
 
 // Export for Vercel
