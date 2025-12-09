@@ -29,61 +29,85 @@ app.use(express.text({ type: ['text/plain', 'text/html', 'application/x-www-form
 app.use(morgan('dev'));
 
 // Initialize database connection (non-blocking)
-// Note: In serverless, connection is per-request, so we don't pre-connect
-// The database connection will be established when needed
 (async () => {
   try {
     const { default: connectDB } = await import('../backend/dist/config/database.js');
     await connectDB();
   } catch (err) {
     console.error('Database connection error (non-fatal):', err.message);
-    // Don't throw - allow serverless function to start even if DB connection fails
   }
 })();
 
-// Routes - wrapped in try-catch to prevent crashes if imports fail
-try {
-  const clientRoutes = (await import('../backend/dist/routes/clientRoutes.js')).default;
-  const packageRoutes = (await import('../backend/dist/routes/packageRoutes.js')).default;
-  const biometricRoutes = (await import('../backend/dist/routes/biometricRoutes.js')).default;
-  const accessLogRoutes = (await import('../backend/dist/routes/accessLogRoutes.js')).default;
-  const settingsRoutes = (await import('../backend/dist/routes/settingsRoutes.js')).default;
-  const directESSLRoutes = (await import('../backend/dist/routes/directESSLRoutes.js')).default;
-  const tracklieRoutes = (await import('../backend/dist/routes/tracklieRoutes.js')).default;
-  const etimetrackRoutes = (await import('../backend/dist/routes/etimetrackRoutes.js')).default;
-  const esslTrackLiteApiRoutes = (await import('../backend/dist/routes/esslTrackLiteApiRoutes.js')).default;
-  const { errorHandler } = await import('../backend/dist/middleware/errorHandler.js');
-  const { handleIClockCData, handleIClockGetRequest } = await import('../backend/dist/controllers/directESSLController.js');
+// Lazy load routes to prevent crashes if imports fail
+let routesLoaded = false;
+const loadRoutes = async () => {
+  if (routesLoaded) return;
+  
+  try {
+    const [
+      { default: clientRoutes },
+      { default: packageRoutes },
+      { default: biometricRoutes },
+      { default: accessLogRoutes },
+      { default: settingsRoutes },
+      { default: directESSLRoutes },
+      { default: tracklieRoutes },
+      { default: etimetrackRoutes },
+      { default: esslTrackLiteApiRoutes },
+      { errorHandler },
+      { handleIClockCData, handleIClockGetRequest }
+    ] = await Promise.all([
+      import('../backend/dist/routes/clientRoutes.js'),
+      import('../backend/dist/routes/packageRoutes.js'),
+      import('../backend/dist/routes/biometricRoutes.js'),
+      import('../backend/dist/routes/accessLogRoutes.js'),
+      import('../backend/dist/routes/settingsRoutes.js'),
+      import('../backend/dist/routes/directESSLRoutes.js'),
+      import('../backend/dist/routes/tracklieRoutes.js'),
+      import('../backend/dist/routes/etimetrackRoutes.js'),
+      import('../backend/dist/routes/esslTrackLiteApiRoutes.js'),
+      import('../backend/dist/middleware/errorHandler.js'),
+      import('../backend/dist/controllers/directESSLController.js')
+    ]);
 
-  app.use('/api/clients', clientRoutes);
-  app.use('/api/packages', packageRoutes);
-  app.use('/api/biometric', biometricRoutes);
-  app.use('/api/access-logs', accessLogRoutes);
-  app.use('/api/settings', settingsRoutes);
-  app.use('/api/direct-essl', directESSLRoutes);
-  app.use('/api/tracklie', tracklieRoutes);
-  app.use('/api/etimetrack', etimetrackRoutes);
-  app.use('/api/essl-tracklite', esslTrackLiteApiRoutes);
+    app.use('/api/clients', clientRoutes);
+    app.use('/api/packages', packageRoutes);
+    app.use('/api/biometric', biometricRoutes);
+    app.use('/api/access-logs', accessLogRoutes);
+    app.use('/api/settings', settingsRoutes);
+    app.use('/api/direct-essl', directESSLRoutes);
+    app.use('/api/tracklie', tracklieRoutes);
+    app.use('/api/etimetrack', etimetrackRoutes);
+    app.use('/api/essl-tracklite', esslTrackLiteApiRoutes);
 
-  // iClock protocol endpoints
-  app.get('/iclock/cdata.aspx', handleIClockCData);
-  app.post('/iclock/cdata.aspx', handleIClockCData);
-  app.get('/iclock/getrequest.aspx', handleIClockGetRequest);
-  app.post('/iclock/getrequest.aspx', handleIClockGetRequest);
+    // iClock protocol endpoints
+    app.get('/iclock/cdata.aspx', handleIClockCData);
+    app.post('/iclock/cdata.aspx', handleIClockCData);
+    app.get('/iclock/getrequest.aspx', handleIClockGetRequest);
+    app.post('/iclock/getrequest.aspx', handleIClockGetRequest);
 
-  // Error handler middleware
-  app.use(errorHandler);
-} catch (routeError) {
-  console.error('Error loading routes:', routeError);
-  // Add fallback route to show error
-  app.use('/api/*', (req, res) => {
-    res.status(500).json({
-      success: false,
-      message: 'Routes failed to load',
-      error: process.env.NODE_ENV !== 'production' ? routeError.message : undefined,
+    // Error handler middleware
+    app.use(errorHandler);
+    
+    routesLoaded = true;
+  } catch (routeError) {
+    console.error('Error loading routes:', routeError);
+    // Add fallback route
+    app.use('/api/*', (req, res) => {
+      res.status(500).json({
+        success: false,
+        message: 'Routes failed to load',
+        error: process.env.NODE_ENV !== 'production' ? routeError.message : undefined,
+      });
     });
-  });
-}
+  }
+};
+
+// Load routes on first request
+app.use(async (req, res, next) => {
+  await loadRoutes();
+  next();
+});
 
 // Health check with database status
 app.get('/api/health', async (req, res) => {
@@ -96,7 +120,6 @@ app.get('/api/health', async (req, res) => {
       useApiOnly: process.env.USE_API_ONLY || 'not set',
     };
     
-    // Try to test database connection
     let dbStatus = 'unknown';
     try {
       const { getPool } = await import('../backend/dist/config/database.js');
@@ -130,12 +153,11 @@ app.get('/api/health', async (req, res) => {
       message: 'Server error', 
       timestamp: new Date(),
       error: error.message,
-      stack: process.env.NODE_ENV !== 'production' ? error.stack : undefined,
     });
   }
 });
 
-// Debug endpoint to check environment variables (without sensitive data)
+// Debug endpoint
 app.get('/api/debug', (req, res) => {
   res.json({
     env: {
@@ -152,7 +174,7 @@ app.get('/api/debug', (req, res) => {
   });
 });
 
-// Enhanced error handling for serverless
+// Enhanced error handling
 app.use((err, req, res, next) => {
   console.error('API Error:', {
     message: err.message,
@@ -162,30 +184,22 @@ app.use((err, req, res, next) => {
     timestamp: new Date().toISOString(),
   });
   
-  // Prevent function crashes - always send response
   if (!res.headersSent) {
     res.status(err.statusCode || 500).json({
       success: false,
       message: err.message || 'Internal Server Error',
       path: req.path,
-      ...(process.env.NODE_ENV !== 'production' && { 
-        stack: err.stack,
-        details: err.details 
-      }),
     });
   }
 });
 
-// Global error handler to prevent unhandled rejections from crashing the function
+// Global error handlers
 process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
-  // Don't crash - log and continue
+  console.error('Unhandled Rejection:', reason);
 });
 
 process.on('uncaughtException', (error) => {
   console.error('Uncaught Exception:', error);
-  // Don't crash - log and continue
-  // In serverless, we want to handle errors gracefully
 });
 
 // Export for Vercel
