@@ -10,24 +10,7 @@ dotenv.config();
 
 const app = express();
 
-// Middleware
-app.use(helmet());
-app.use(compression());
-app.use(cors({
-  origin: [
-    process.env.FRONTEND_URL || '*',
-    'http://localhost:5173',
-    'http://localhost:3000',
-  ],
-  credentials: true,
-}));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(express.text({ type: ['text/plain', 'text/html', 'application/x-www-form-urlencoded'] }));
-app.use(morgan('dev'));
-
-// Debug endpoint - MUST work without any imports
-// Define FIRST before any middleware
+// Debug endpoint - Define FIRST before any middleware that might fail
 app.get('/api/debug', (req, res) => {
   try {
     const env = {
@@ -52,39 +35,18 @@ app.get('/api/debug', (req, res) => {
     res.status(500).json({ 
       success: false,
       error: error.message,
-      stack: process.env.NODE_ENV !== 'production' ? error.stack : undefined,
     });
   }
 });
 
-// Health endpoint - MUST work without ANY imports
+// Health endpoint - Define early
 app.get('/api/health', (req, res) => {
   try {
-    const dbConfig = {
-      server: process.env.ETIME_SQL_SERVER || 'not set',
-      database: process.env.ETIME_SQL_DB || 'not set',
-      user: process.env.ETIME_SQL_USER || 'not set',
-      sqlDisabled: process.env.SQL_DISABLED || 'not set',
-      useApiOnly: process.env.USE_API_ONLY || 'not set',
-    };
-    
     res.json({ 
       status: 'OK', 
       message: 'Server is running', 
       timestamp: new Date().toISOString(),
       platform: 'Vercel Serverless',
-      database: {
-        configured: !!process.env.ETIME_SQL_SERVER,
-        server: dbConfig.server,
-        database: dbConfig.database,
-        sqlDisabled: dbConfig.sqlDisabled,
-        useApiOnly: dbConfig.useApiOnly,
-        connectionStatus: 'not tested (check logs for connection status)',
-      },
-      environment: {
-        nodeEnv: process.env.NODE_ENV,
-        frontendUrl: process.env.FRONTEND_URL || 'not set',
-      },
     });
   } catch (error) {
     res.status(500).json({ 
@@ -94,6 +56,35 @@ app.get('/api/health', (req, res) => {
     });
   }
 });
+
+// Middleware (with error handling)
+try {
+  app.use(helmet());
+} catch (e) { console.warn('Helmet failed:', e.message); }
+
+try {
+  app.use(compression());
+} catch (e) { console.warn('Compression failed:', e.message); }
+
+try {
+  app.use(cors({
+    origin: [
+      process.env.FRONTEND_URL || '*',
+      'http://localhost:5173',
+      'http://localhost:3000',
+    ],
+    credentials: true,
+  }));
+} catch (e) { console.warn('CORS failed:', e.message); }
+
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(express.text({ type: ['text/plain', 'text/html', 'application/x-www-form-urlencoded'] }));
+
+try {
+  app.use(morgan('dev'));
+} catch (e) { console.warn('Morgan failed:', e.message); }
+
 
 // Initialize database connection (non-blocking) - moved after routes to prevent crashes
 // This will be called lazily when routes are loaded
