@@ -22,6 +22,7 @@ build/
 **/*.log
 logs/
 **/logs/
+monitor.log
 
 # IDE
 .DS_Store
@@ -45,17 +46,99 @@ uploads/
 *.xls
 *.xlsx
 
+# Data files (keep templates, exclude actual data)
+*.csv
+*.json
+!package.json
+!package-lock.json
+!tsconfig.json
+!tsconfig.*.json
+!components.json
+!tailwind.config.ts
+!postcss.config.js
+!eslint.config.js
+!vite.config.ts
+
 # Old/unwanted directories
 strengthscape-admin-main/
 strengthscape-admin-main.zip
 
-# Temporary PowerShell scripts (keep important ones)
-# Keep: install-cloudflared.ps1, setup-tunnel-config.ps1
-# Remove: test scripts, temporary scripts
+# Temporary PowerShell scripts (keep only essential deployment scripts)
+authenticate-with-token.ps1
+download-certificate.ps1
+download-credentials-final.ps1
+fix-tunnel-auth.ps1
+get-credentials-with-account.ps1
+get-tcp-hostname.ps1
+get-tunnel-credentials.ps1
+get-tunnel-hostname.ps1
+quick-tunnel-test.ps1
+run-quick-tunnel-no-config.ps1
+run-quick-tunnel.ps1
+run-tunnel-and-get-hostname.ps1
+setup-tunnel-hostname-api.ps1
+configure-tunnel-routes-api.ps1
+create-config-manual.ps1
+fix-tunnel-config.ps1
+prepare-git-push.ps1
 
-# Cloudflare tunnel credentials (sensitive)
+# Old setup guides (keep only deployment guides)
+ACCESS_LOGS_FIX.md
+COMPLETE_SYNC_GUIDE.md
+COMPLETE_USER_CREATION_GUIDE.md
+CONSOLE_WARNINGS_FIXED.md
+ESSL_DEVICE_SETUP_GUIDE.md
+ESSL_DEVICE_SETUP.md
+FIX_500_19_ERROR.md
+FIX-CLOUDFLARED-PATH.md
+IIS_FINAL_SETUP.md
+IIS_NEXT_STEPS.md
+IIS_SETUP_GUIDE.md
+IMMEDIATE_FIX.md
+INSTALL_IISNODE.md
+K90_PRO_QUICK_SETUP.md
+K90_PRO_SETUP.md
+POST_MIGRATION_GUIDE.md
+QUICK_FIX_500.md
+QUICK_IIS_SETUP.md
+REFRESH_BUTTON_FIX.md
+REFRESH_FUNCTIONALITY_SUMMARY.md
+SOCKET_STABILITY_IMPROVEMENTS.md
+STATUS_CHECK.md
+TEST_USER_CHECKIN_SUMMARY.md
+TROUBLESHOOT_500_ERROR.md
+TRACKLIE_SQL_SETUP.md
+
+# Documentation files
+eBioserverNew_Manual.pdf
+eBioServerNew-Web_API-Manual.docx
+eBioServerNew-Web_API-Manual.pdf
+eTimeTrackLiteWeb.zip
+
+# Data files
+backupdata.dat
+user.dat
+user_import_template.csv
+user_import_template.json
+gym_members_flexible.csv
+gym_members_flexible.json
+zk_imported_users.csv
+zk_imported_users.json
+
+# HTML files
+device_user_downloader.html
+essl_device_config.html
+
+# Other temporary files
+checkin_trigger.bat
+config_server.js
+deploy-to-iis.ps1
+h.py
+~$*
+
+# Cloudflare tunnel credentials (sensitive - should not be committed)
 **/.cloudflared/*.json
-!**/.cloudflared/config.yml
+!**/.cloudflared/config.yml.sample
 
 # OS files
 Thumbs.db
@@ -69,4 +152,3 @@ desktop.ini
 # Temporary files
 *.tmp
 *.temp
-~$*
