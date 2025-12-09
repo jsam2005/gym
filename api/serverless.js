@@ -85,15 +85,8 @@ app.get('/api/health', (req, res) => {
   }
 });
 
-// Initialize database connection (non-blocking)
-(async () => {
-  try {
-    const { default: connectDB } = await import('../backend/dist/config/database.js');
-    await connectDB();
-  } catch (err) {
-    console.error('Database connection error (non-fatal):', err.message);
-  }
-})();
+// Initialize database connection (non-blocking) - moved after routes to prevent crashes
+// This will be called lazily when routes are loaded
 
 // Lazy load routes - only load when needed
 let routesLoaded = false;
