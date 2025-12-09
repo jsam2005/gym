@@ -1,13 +1,72 @@
+# Dependencies
 node_modules/
+**/node_modules/
+
+# Build outputs
 dist/
+**/dist/
+build/
+**/build/
+
+# Environment variables
 .env
 .env.local
 .env.production
+.env.*
+!.env.sample
+**/.env
+**/.env.local
+
+# Logs
 *.log
+**/*.log
+logs/
+**/logs/
+
+# IDE
 .DS_Store
-coverage/
 .vscode/
 .idea/
+*.swp
+*.swo
+*~
+
+# Coverage
+coverage/
+**/coverage/
+
+# Uploads and temporary files
+uploads/
+**/uploads/
+*.dat
+*.zip
+*.pdf
+*.docx
+*.xls
+*.xlsx
+
+# Old/unwanted directories
 strengthscape-admin-main/
 strengthscape-admin-main.zip
-uploads/
+
+# Temporary PowerShell scripts (keep important ones)
+# Keep: install-cloudflared.ps1, setup-tunnel-config.ps1
+# Remove: test scripts, temporary scripts
+
+# Cloudflare tunnel credentials (sensitive)
+**/.cloudflared/*.json
+!**/.cloudflared/config.yml
+
+# OS files
+Thumbs.db
+desktop.ini
+
+# Backup files
+*.backup
+*.bak
+*~
+
+# Temporary files
+*.tmp
+*.temp
+~$*

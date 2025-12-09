@@ -6,7 +6,12 @@ import morgan from 'morgan';
 import dotenv from 'dotenv';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import connectDB from './config/database.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 import clientRoutes from './routes/clientRoutes.js';
 import packageRoutes from './routes/packageRoutes.js';
 import biometricRoutes from './routes/biometricRoutes.js';
@@ -123,6 +128,9 @@ app.get('/api/health', async (req, res) => {
   }
 });
 
+// Serve static files from frontend build (for production)
+// This will be set up in startServer function
+
 // Error handling
 app.use(errorHandler);
 
@@ -150,6 +158,14 @@ const startServer = async () => {
     // Try to connect to database (optional - won't fail if connection fails)
     await connectDB();
     
+    // Setup GymClients table if it doesn't exist
+    try {
+      const { setupGymClientsTable } = await import('./scripts/setupGymClientsTable.js');
+      await setupGymClientsTable();
+    } catch (tableError: any) {
+      console.warn('⚠️  GymClients table setup skipped:', tableError.message);
+    }
+    
     // Initialize eTimeTrack sync service (only if SQL is available)
     try {
       await etimetrackSyncService.initialize();
@@ -157,9 +173,37 @@ const startServer = async () => {
       console.warn('⚠️  eTimeTrack sync service initialization skipped:', syncError.message);
     }
     
+    // Setup frontend static file serving (for production)
+    const fs = await import('fs');
+    const frontendPath = path.join(__dirname, '..', '..', 'frontend', 'dist');
+    
+    try {
+      await fs.promises.access(frontendPath);
+      // Frontend dist exists - serve static files
+      app.use(express.static(frontendPath, {
+        maxAge: '1y',
+        etag: true,
+        lastModified: true,
+      }));
+
+      // Serve index.html for all non-API routes (React Router)
+      app.get('*', (req, res, next) => {
+        // Skip API routes and iClock routes
+        if (req.path.startsWith('/api') || req.path.startsWith('/iclock')) {
+          return next();
+        }
+        res.sendFile(path.join(frontendPath, 'index.html'));
+      });
+      
+      console.log('✅ Frontend static files enabled');
+    } catch (frontendError) {
+      console.log('ℹ️  Frontend dist not found - API-only mode');
+    }
+    
     httpServer.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
       console.log(`📊 API: http://localhost:${PORT}/api`);
+      console.log(`🌐 Frontend: http://localhost:${PORT}`);
       console.log(`🔌 WebSocket: ws://localhost:${PORT}`);
       
       // Start background jobs (they will handle SQL connection errors gracefully)

@@ -14,19 +14,19 @@ type DatabaseConfig = sql.config & {
  * Get database configuration dynamically (reads from env at call time, not module load)
  */
 const getDatabaseConfig = (): DatabaseConfig => {
-  const rawServer =
-    process.env.ETIMETRACK_SQL_SERVER ||
-    process.env.TRACKLIE_SQL_SERVER ||
-    process.env.ETIME_SQL_SERVER ||
-    'localhost';
+const rawServer =
+  process.env.ETIMETRACK_SQL_SERVER ||
+  process.env.TRACKLIE_SQL_SERVER ||
+  process.env.ETIME_SQL_SERVER ||
+  'localhost';
   
   // Parse server name and instance
-  const [parsedServer, parsedInstance] = rawServer.split('\\');
-  const instanceName =
-    process.env.ETIMETRACK_SQL_INSTANCE ||
-    process.env.TRACKLIE_SQL_INSTANCE ||
-    process.env.ETIME_SQL_INSTANCE ||
-    parsedInstance;
+const [parsedServer, parsedInstance] = rawServer.split('\\');
+const instanceName =
+  process.env.ETIMETRACK_SQL_INSTANCE ||
+  process.env.TRACKLIE_SQL_INSTANCE ||
+  process.env.ETIME_SQL_INSTANCE ||
+  parsedInstance;
   
   // For named instances, we need to use the server name directly with instance
   // mssql package handles instanceName in options
@@ -34,37 +34,49 @@ const getDatabaseConfig = (): DatabaseConfig => {
   
   return {
     server: serverName,
-    database:
-      process.env.ETIMETRACK_SQL_DATABASE ||
-      process.env.TRACKLIE_SQL_DATABASE ||
-      process.env.ETIME_SQL_DB ||
-      'etimetracklite1',
-    user:
-      process.env.ETIMETRACK_SQL_USER ||
-      process.env.TRACKLIE_SQL_USER ||
-      process.env.ETIME_SQL_USER ||
-      'essl',
-    password:
-      process.env.ETIMETRACK_SQL_PASSWORD ||
-      process.env.TRACKLIE_SQL_PASSWORD ||
-      process.env.ETIME_SQL_PASSWORD ||
-      '',
-    options: {
-      encrypt: false,
-      trustServerCertificate: true, // Set to true for local/trusted connections
-      enableArithAbort: true,
-      instanceName: instanceName || undefined, // SQLEXPRESS for named instance
-      connectTimeout: 30000, // 30 seconds
-      requestTimeout: 30000, // 30 seconds
-      // Additional options for better connection
-      enableImplicitTransactions: false,
-      abortTransactionOnError: false,
-    } as sql.config['options'],
-    pool: {
-      max: 10,
-      min: 0,
-      idleTimeoutMillis: 30000,
-    },
+  database:
+    process.env.ETIMETRACK_SQL_DATABASE ||
+    process.env.TRACKLIE_SQL_DATABASE ||
+    process.env.ETIME_SQL_DB ||
+    'etimetracklite1',
+  user:
+    process.env.ETIMETRACK_SQL_USER ||
+    process.env.TRACKLIE_SQL_USER ||
+    process.env.ETIME_SQL_USER ||
+    'essl',
+  password:
+    process.env.ETIMETRACK_SQL_PASSWORD ||
+    process.env.TRACKLIE_SQL_PASSWORD ||
+    process.env.ETIME_SQL_PASSWORD ||
+    '',
+  options: {
+    // Enable encryption for Cloudflare Tunnel connections
+    // If connecting via tunnel, set encrypt: true
+    // For local connections, encrypt: false is fine
+    encrypt: process.env.ETIME_SQL_SERVER?.includes('tunnel') || 
+             process.env.ETIME_SQL_SERVER?.includes('cloudflare') ||
+             process.env.ETIME_SQL_SERVER?.includes('.com') ||
+             process.env.ETIME_SQL_SERVER?.includes('.net') ||
+             process.env.ETIME_SQL_SERVER?.includes('.io') ? true : false,
+    trustServerCertificate: true, // Set to true for local/trusted connections and tunnels
+    enableArithAbort: true,
+    instanceName: instanceName || undefined, // SQLEXPRESS for named instance
+    // Increased timeouts for tunnel connections
+    connectTimeout: process.env.ETIME_SQL_SERVER?.includes('tunnel') || 
+                    process.env.ETIME_SQL_SERVER?.includes('cloudflare') ? 60000 : 30000,
+    requestTimeout: process.env.ETIME_SQL_SERVER?.includes('tunnel') || 
+                    process.env.ETIME_SQL_SERVER?.includes('cloudflare') ? 60000 : 30000,
+    // Additional options for better connection
+    enableImplicitTransactions: false,
+    abortTransactionOnError: false,
+    // Explicit port for tunnel connections (Cloudflare Tunnel uses standard SQL port)
+    port: process.env.ETIME_SQL_PORT ? parseInt(process.env.ETIME_SQL_PORT) : undefined,
+  } as sql.config['options'],
+  pool: {
+    max: 10,
+    min: 0,
+    idleTimeoutMillis: 30000,
+  },
   };
 };
 

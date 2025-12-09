@@ -6,29 +6,33 @@ import { GymTable, Client } from "@/components/GymTable";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useToast } from "@/components/ui/use-toast";
 import { clientAPI } from "@/lib/api";
 
 const AllClients = () => {
   console.log("AllClients component is rendering");
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [deleting, setDeleting] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState<string | null>(null);
 
   // Fetch clients from API - extracted to be reusable
   const fetchClients = async (isRefresh = false) => {
-    try {
+      try {
       if (isRefresh) {
         setRefreshing(true);
       } else {
         setLoading(true);
       }
-      const response = await clientAPI.getAll();
-      if (response.data.success) {
-        // Transform API data to match the expected format
+        const response = await clientAPI.getAll();
+        if (response.data.success) {
+          // Transform API data to match the expected format
         // Transform and deduplicate clients
         const transformedClients = response.data.clients
           .map((client: any, index: number) => ({
@@ -39,9 +43,9 @@ const AllClients = () => {
             status: client.status || 'inactive',
             billingDate: client.packageStartDate 
               ? new Date(client.packageStartDate).toLocaleDateString('en-GB', { 
-                  day: 'numeric', 
-                  month: 'long', 
-                  year: 'numeric' 
+              day: 'numeric', 
+              month: 'long', 
+              year: 'numeric' 
                 })
               : 'N/A',
             duration: client.packageType || 'N/A'
@@ -50,19 +54,19 @@ const AllClients = () => {
           .filter((client: any, index: number, self: any[]) => 
             index === self.findIndex((c: any) => c.id === client.id)
           );
-        setClients(transformedClients);
-      }
-    } catch (error) {
-      console.error('Error fetching clients:', error);
-      setClients([]);
-    } finally {
+          setClients(transformedClients);
+        }
+      } catch (error) {
+        console.error('Error fetching clients:', error);
+        setClients([]);
+      } finally {
       if (isRefresh) {
         setRefreshing(false);
       } else {
         setLoading(false);
       }
-    }
-  };
+      }
+    };
 
   // Initial fetch on component mount
   useEffect(() => {
@@ -79,9 +83,63 @@ const AllClients = () => {
     setIsDialogOpen(true);
   };
 
-  const handleDelete = (client: Client) => {
-    if (confirm(`Are you sure you want to delete ${client.name}?`)) {
-      setClients(clients.filter(c => c.id !== client.id));
+  const handleDelete = async (client: Client) => {
+    if (!confirm(`Are you sure you want to delete ${client.name}? This will delete the client from the database and the ESSL device.`)) {
+      return;
+    }
+
+    setDeleting(String(client.id));
+    try {
+      await clientAPI.delete(String(client.id));
+      toast({
+        title: "Client Deleted",
+        description: `${client.name} has been deleted successfully from database and device.`,
+      });
+      // Refresh the list
+      fetchClients(true);
+    } catch (error: any) {
+      console.error("Error deleting client:", error);
+      toast({
+        title: "Error",
+        description: error.response?.data?.message || "Failed to delete client",
+        variant: "destructive"
+      });
+    } finally {
+      setDeleting(null);
+    }
+  };
+
+  const handleEdit = (client: Client) => {
+    navigate(`/clients/edit/${client.id}`);
+  };
+
+  const handleSyncToDevice = async (client: Client) => {
+    setSyncing(String(client.id));
+    try {
+      const response = await clientAPI.syncToDevice(String(client.id));
+      if (response.data.success) {
+        toast({
+          title: "Sync Successful",
+          description: response.data.deviceRegistered 
+            ? `${client.name} has been synced to the device successfully.`
+            : `${client.name} is in the database. ${response.data.deviceMessage || 'Device sync may require middleware.'}`,
+        });
+      } else {
+        toast({
+          title: "Sync Failed",
+          description: response.data.message || "Failed to sync client to device",
+          variant: "destructive"
+        });
+      }
+    } catch (error: any) {
+      console.error("Error syncing client to device:", error);
+      toast({
+        title: "Error",
+        description: error.response?.data?.message || "Failed to sync client to device",
+        variant: "destructive"
+      });
+    } finally {
+      setSyncing(null);
     }
   };
 
@@ -132,11 +190,15 @@ const AllClients = () => {
           <div className="text-gray-400">Loading clients...</div>
         </div>
       ) : (
-        <GymTable 
-          clients={filteredClients}
-          onView={handleView}
-          onDelete={handleDelete}
-        />
+          <GymTable
+            clients={filteredClients}
+            onView={handleView}
+            onDelete={handleDelete}
+            onEdit={handleEdit}
+            onSync={handleSyncToDevice}
+            deleting={deleting}
+            syncing={syncing}
+          />
       )}
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>

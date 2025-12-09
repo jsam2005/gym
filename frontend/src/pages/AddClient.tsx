@@ -35,55 +35,73 @@ const AddClient = () => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
+  const [submitting, setSubmitting] = useState(false);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     // Basic validation
-    if (!formData.firstName || !formData.lastName || !formData.contact || !formData.package) {
+    if (!formData.firstName || !formData.contact) {
       toast({
         title: "Validation Error",
-        description: "Please fill in all required fields (First Name, Last Name, Contact, Package)",
+        description: "Please fill in all required fields (First Name, Contact)",
         variant: "destructive"
       });
       return;
     }
 
+    setSubmitting(true);
     try {
-      // Create client via API
-      await clientAPI.create({
+      // Create client via API - this will:
+      // 1. Create employee in Employees table (name + phone only)
+      // 2. Create gym client in GymClients table (additional info - optional)
+      // 3. Register user on ESSL device
+      const response = await clientAPI.create({
         firstName: formData.firstName,
-        lastName: formData.lastName || "User",
+        lastName: formData.lastName || "",
         phone: formData.contact,
-        email: formData.email,
-        address: formData.address,
-        gender: formData.gender,
-        dateOfBirth: new Date(), // Default to today, should be added to form
+        email: formData.email || undefined,
+        address: formData.address || undefined,
+        gender: formData.gender || undefined,
+        dateOfBirth: new Date(),
         emergencyContact: {
-          name: "Emergency Contact", // Should be added to form
+          name: "Emergency Contact",
           phone: "0000000000",
           relation: "Family"
         },
-        packageType: formData.package,
+        packageType: formData.package || undefined,
         packageStartDate: new Date(),
-        packageEndDate: new Date(Date.now() + (parseInt(formData.months) * 30 * 24 * 60 * 60 * 1000)),
-        packageAmount: parseFloat(formData.totalAmount) || 0,
-        amountPaid: parseFloat(formData.amount) || 0,
-        bloodGroup: formData.bloodGroup,
-        trainer: formData.trainer
+        packageEndDate: formData.remainingDate ? new Date(formData.remainingDate) : 
+                       new Date(Date.now() + (parseInt(formData.months || "1") * 30 * 24 * 60 * 60 * 1000)),
+        packageAmount: formData.totalAmount ? parseFloat(formData.totalAmount) : undefined,
+        amountPaid: formData.amount ? parseFloat(formData.amount) : undefined,
+        // Additional fields for GymClients table - only send if provided
+        bloodGroup: formData.bloodGroup || undefined,
+        trainer: formData.trainer || undefined,
+        months: formData.months ? parseInt(formData.months) : undefined,
+        timings: formData.timings || undefined,
+        paymentMode: formData.paymentMode || undefined,
       });
+
+      const deviceStatus = response.data.deviceRegistered 
+        ? "✅ Registered on device" 
+        : `⚠️ Device: ${response.data.deviceMessage || 'Not registered'}`;
 
       toast({
         title: "Client Added Successfully",
-        description: `${formData.firstName} ${formData.lastName} has been added to the system.`,
+        description: `${formData.firstName} ${formData.lastName} has been added. ${deviceStatus}. User ID: ${response.data.employeeCodeInDevice}`,
       });
 
       // Navigate back to clients list
       navigate("/clients");
     } catch (error: any) {
+      console.error("Error creating client:", error);
       toast({
         title: "Error",
         description: error.response?.data?.message || "Failed to add client",
         variant: "destructive"
       });
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -217,7 +235,7 @@ const AddClient = () => {
               </Select>
             </div>
             <div>
-              <Label htmlFor="package" className="text-sm font-medium mb-2 block">Package *</Label>
+              <Label htmlFor="package" className="text-sm font-medium mb-2 block">Package</Label>
               <Select value={formData.package} onValueChange={(value) => handleInputChange("package", value)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select package" />
@@ -313,8 +331,12 @@ const AddClient = () => {
             >
               Cancel
             </Button>
-            <Button type="submit" className="bg-primary hover:bg-primary/90 text-white px-8">
-              Add Client
+            <Button 
+              type="submit" 
+              className="bg-primary hover:bg-primary/90 text-white px-8"
+              disabled={submitting}
+            >
+              {submitting ? "Adding Client..." : "Add Client"}
             </Button>
           </div>
         </form>

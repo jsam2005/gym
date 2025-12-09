@@ -1,9 +1,10 @@
 import axios from 'axios';
 
 // Automatically use production API URL in production mode
+// In production, API is served from same origin (single IIS app)
 const API_URL = import.meta.env.VITE_API_URL || 
   (import.meta.env.MODE === 'production' 
-    ? 'http://localhost:5000/api'  // Localhost for production
+    ? '/api'  // Same origin - backend serves frontend
     : 'http://localhost:5000/api');
 
 const api = axios.create({
@@ -55,6 +56,7 @@ export const clientAPI = {
   update: (id: string, data: any) => api.put(`/clients/${id}`, data),
   delete: (id: string) => api.delete(`/clients/${id}`),
   renew: (id: string, data: any) => api.post(`/clients/${id}/renew`, data),
+  syncToDevice: (id: string) => api.post(`/clients/${id}/sync-device`),
 };
 
 export const packageAPI = {

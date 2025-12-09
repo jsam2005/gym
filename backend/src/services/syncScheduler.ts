@@ -34,7 +34,7 @@ const emitAccessEvent = async (log: ProcessedLog) => {
     await incrementAccessAttempt(client.id, timestamp.toISOString());
     if (log.accessGranted) {
     await updateClientByEsslId(userId!, { lastAccessTime: timestamp.toISOString() });
-    }
+            }
   }
 
   if (ioInstance) {
@@ -83,10 +83,10 @@ async function collectLogsFromPreferredSource(): Promise<ProcessedLog[]> {
 
   if (etimetrackSyncService.isEnabled()) {
     try {
-      const sqlLogs = await fetchLogsFromEtimetrack();
-      if (sqlLogs.length > 0) {
-        return sqlLogs;
-      }
+    const sqlLogs = await fetchLogsFromEtimetrack();
+    if (sqlLogs.length > 0) {
+      return sqlLogs;
+    }
     } catch (error: any) {
       // Silently fail if SQL is not available
       console.debug('⚠️  eTimeTrack sync skipped (SQL not available)');

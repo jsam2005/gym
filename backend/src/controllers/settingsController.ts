@@ -17,7 +17,7 @@ import {
 export const getProfileSettings = async (req: Request, res: Response): Promise<void> => {
   try {
     let user = await getUser();
-
+    
     if (!user) {
       const defaultPassword = await bcrypt.hash('admin123', 10);
       user = await createUser({
@@ -212,7 +212,7 @@ export const updateNotifications = async (req: Request, res: Response): Promise<
 export const getGymSettings = async (req: Request, res: Response): Promise<void> => {
   try {
     let gymSettings = await fetchGymSettings();
-
+    
     if (!gymSettings) {
       gymSettings = await createGymSettings({
         gymName: 'FitStudio',
@@ -258,11 +258,11 @@ export const updateGymInfo = async (req: Request, res: Response): Promise<void> 
     }
 
     const updated = await updateGymSettingsRecord({
-      gymName,
-      gymEmail,
-      gymPhone,
-      gymAddress,
-    });
+        gymName,
+        gymEmail,
+        gymPhone,
+        gymAddress,
+      });
 
     res.json({
       success: true,

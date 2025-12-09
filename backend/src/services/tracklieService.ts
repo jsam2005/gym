@@ -70,7 +70,7 @@ class TracklieService {
 
     const pool = await this.ensurePool();
     
-    // First, try to get all tables to see what exists
+    // First, try to get all tables to see what exists (without logging all tables)
     try {
       const tablesResult = await pool.request().query(`
         SELECT TABLE_NAME 
@@ -79,7 +79,6 @@ class TracklieService {
         ORDER BY TABLE_NAME
       `);
       const allTables = tablesResult.recordset.map((row: any) => row.TABLE_NAME);
-      console.log(`📋 Available tables in database: ${allTables.join(', ')}`);
       
       // Check if any of our candidate tables exist
       for (const table of possibleTables) {
@@ -90,23 +89,29 @@ class TracklieService {
             return table;
           } catch (e) {
             // Table exists but might be empty or have permission issues
-            console.log(`⚠️  Table ${table} exists but query failed:`, (e as Error).message);
+            // Only log if in debug mode
+            if (process.env.NODE_ENV === 'development') {
+              console.log(`⚠️  Table ${table} exists but query failed:`, (e as Error).message);
+            }
             continue;
           }
         }
       }
     } catch (e) {
-      console.warn('⚠️  Could not list tables, trying direct queries:', (e as Error).message);
+      // Only log errors in development mode
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('⚠️  Could not list tables, trying direct queries:', (e as Error).message);
+      }
     }
     
-    // Fallback: try direct queries
+    // Fallback: try direct queries (silently)
     for (const table of possibleTables) {
       try {
         const result = await pool.request().query(`SELECT TOP 1 * FROM ${table}`);
         console.log(`✅ Found attendance table: ${table}`);
         return table;
       } catch (e) {
-        // Table doesn't exist, try next
+        // Table doesn't exist, try next (silently)
         continue;
       }
     }

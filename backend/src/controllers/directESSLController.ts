@@ -137,9 +137,9 @@ export const handleESSLWebhook = async (req: Request, res: Response): Promise<vo
 async function handleAccessAttempt(userId: string, timestamp: string, biometricType: string) {
   try {
     console.log(`🔐 Processing access attempt for user: ${userId}`);
-
+    
     const client = await getClientByEsslId(userId);
-
+    
     if (!client) {
       console.log(`❌ Client not found for ESSL user ID: ${userId}`);
       if (io) {
@@ -154,7 +154,7 @@ async function handleAccessAttempt(userId: string, timestamp: string, biometricT
       }
       return;
     }
-
+    
     const currentTime = timestamp ? new Date(timestamp) : new Date();
     const validation = await esslDeviceService.validateAccess(userId, currentTime);
     await incrementAccessAttempt(client.id, currentTime.toISOString());
@@ -173,13 +173,13 @@ async function handleAccessAttempt(userId: string, timestamp: string, biometricT
         biometricType,
       });
     }
-
+    
     console.log(
       `✅ Access attempt processed: ${client.firstName} ${client.lastName} - ${
         validation.allowed ? 'GRANTED' : 'DENIED'
       } (${validation.reason})`
     );
-
+    
     return {
       allowed: validation.allowed,
       reason: validation.reason,
@@ -198,7 +198,7 @@ async function handleAccessAttempt(userId: string, timestamp: string, biometricT
         biometricType,
       });
     }
-
+    
     return {
       allowed: false,
       reason: 'System error',
@@ -493,7 +493,7 @@ async function handleEnrollmentComplete(userId: string, timestamp: string) {
     
     if (client) {
       await updateClientByEsslId(userId, { fingerprintEnrolled: true });
-
+      
       if (io) {
         io.emit('fingerprint_enrolled', {
           clientId: client.id,

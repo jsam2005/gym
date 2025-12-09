@@ -1,4 +1,4 @@
-import { Eye, Trash2 } from "lucide-react";
+import { Eye, Trash2, Edit, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/status-badge";
 import {
@@ -30,6 +30,10 @@ interface GymTableProps {
   showRemainingDuration?: boolean;
   onView?: (client: Client) => void;
   onDelete?: (client: Client) => void;
+  onEdit?: (client: Client) => void;
+  onSync?: (client: Client) => void;
+  deleting?: string | null;
+  syncing?: string | null;
 }
 
 export function GymTable({ 
@@ -38,7 +42,11 @@ export function GymTable({
   showBalance = false,
   showRemainingDuration = false,
   onView,
-  onDelete 
+  onDelete,
+  onEdit,
+  onSync,
+  deleting,
+  syncing
 }: GymTableProps) {
   return (
     <div className="gym-card overflow-hidden">
@@ -88,14 +96,40 @@ export function GymTable({
                     size="sm"
                     onClick={() => onView?.(client)}
                     className="h-8 w-8 p-0"
+                    title="View"
                   >
                     <Eye className="h-4 w-4" />
                   </Button>
+                  {onEdit && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onEdit(client)}
+                      className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                      title="Edit"
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                  )}
+                  {onSync && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onSync(client)}
+                      disabled={syncing === String(client.id)}
+                      className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50 disabled:opacity-50"
+                      title="Sync to Device"
+                    >
+                      <Upload className={`h-4 w-4 ${syncing === String(client.id) ? 'animate-pulse' : ''}`} />
+                    </Button>
+                  )}
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => onDelete?.(client)}
-                    className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                    disabled={deleting === String(client.id)}
+                    className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 disabled:opacity-50"
+                    title="Delete"
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>

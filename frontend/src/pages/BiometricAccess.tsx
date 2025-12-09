@@ -223,8 +223,53 @@ const BiometricAccess = () => {
         variant: data.allowed ? "default" : "destructive",
       });
       
-      // Refresh logs and dashboard
-      fetchAccessLogs();
+      // Convert access_attempt data to AccessLog format and add to state immediately
+      const newLog: AccessLog = {
+        id: `access-${data.userId}-${data.timestamp || Date.now()}`,
+        userId: data.userId?.toString(),
+        esslUserId: data.userId?.toString(),
+        employeeName: data.clientName || data.userId?.toString(),
+        timestamp: data.timestamp || new Date().toISOString(),
+        accessGranted: data.allowed !== false,
+        reason: data.reason || 'ESSL Device Check-in',
+        clientName: data.clientName,
+      };
+      
+      // Check if the log matches the selected date (if date is selected)
+      const logDate = newLog.timestamp ? new Date(newLog.timestamp) : new Date();
+      const filterDate = selectedDate || new Date();
+      const isSameDate = 
+        logDate.getFullYear() === filterDate.getFullYear() &&
+        logDate.getMonth() === filterDate.getMonth() &&
+        logDate.getDate() === filterDate.getDate();
+      
+      // Always add the log immediately (don't filter by date for real-time events)
+      // The date filter only applies to database queries
+      setNewLogEntry(newLog);
+      setAccessLogs(prevLogs => {
+        // Check if log already exists (prevent duplicates)
+        const exists = prevLogs.some(log => 
+          log.userId === newLog.userId && 
+          log.timestamp === newLog.timestamp
+        );
+        if (exists) {
+          console.log('⚠️ Log already exists, skipping:', newLog);
+          return prevLogs;
+        }
+        console.log('✅ Adding log to table:', {
+          userId: newLog.userId,
+          name: newLog.employeeName,
+          timestamp: newLog.timestamp,
+          totalLogs: prevLogs.length + 1
+        });
+        return [newLog, ...prevLogs];
+      });
+      
+      // Also refresh from database to get any additional details (but don't replace, merge)
+      // Use a small delay to ensure the state update completes first
+      setTimeout(() => {
+        fetchAccessLogs(selectedDate, false);
+      }, 100);
       fetchDashboard();
     });
 
@@ -469,7 +514,7 @@ const BiometricAccess = () => {
     return 'Unknown';
   };
 
-  const fetchAccessLogs = async (date?: Date) => {
+  const fetchAccessLogs = async (date?: Date, forceReplace: boolean = false) => {
     try {
       const filterDate = date || selectedDate || new Date();
       const startDate = new Date(filterDate);
@@ -481,14 +526,49 @@ const BiometricAccess = () => {
         limit: 500,
         startDate: startDate.toISOString(),
         endDate: endDate.toISOString(),
-        deviceId: 20 // FACE device
+        deviceId: 20, // FACE device
+        _t: Date.now() // Cache busting parameter
       };
 
       const response = await biometricAPI.getAllLogs(params);
       
       if (response.data.success && response.data.logs) {
         const logs = mapLegacyLogs(response.data.logs);
-        setAccessLogs(logs);
+        
+        if (forceReplace) {
+          // Force replace (for manual refresh button)
+          setAccessLogs(logs);
+        } else {
+          // Merge with existing logs to preserve real-time entries (for automatic updates)
+          setAccessLogs(prevLogs => {
+            // Create a map of existing logs by userId+timestamp to avoid duplicates
+            const existingMap = new Map<string, AccessLog>();
+            prevLogs.forEach(log => {
+              const key = `${log.userId || log.esslUserId || ''}-${log.timestamp || ''}`;
+              if (key && !existingMap.has(key)) {
+                existingMap.set(key, log);
+              }
+            });
+            
+            // Add new logs from database
+            logs.forEach(log => {
+              const key = `${log.userId || log.esslUserId || ''}-${log.timestamp || ''}`;
+              if (key && !existingMap.has(key)) {
+                existingMap.set(key, log);
+              }
+            });
+            
+            // Convert back to array and sort by timestamp (newest first)
+            const merged = Array.from(existingMap.values());
+            merged.sort((a, b) => {
+              const timeA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+              const timeB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+              return timeB - timeA;
+            });
+            
+            return merged;
+          });
+        }
       }
     } catch (error) {
       console.error("Failed to fetch logs:", error);
@@ -906,12 +986,14 @@ const BiometricAccess = () => {
                 onClick={async () => {
                   setRefreshingLogs(true);
                   try {
-                    await fetchAccessLogs(selectedDate);
+                    // Force replace (don't merge) when manually refreshing
+                    await fetchAccessLogs(selectedDate, true);
                     toast({
                       title: "Refreshed",
                       description: "Access logs updated",
                     });
                   } catch (error) {
+                    console.error("Failed to refresh logs:", error);
                     toast({
                       title: "Error",
                       description: "Failed to refresh logs",

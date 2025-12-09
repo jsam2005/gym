@@ -26,6 +26,22 @@ export const stringifyJson = (value: unknown) => {
   return JSON.stringify(value);
 };
 
+export const ensurePool = async (): Promise<sql.ConnectionPool> => {
+  // Check if SQL is disabled
+  if (process.env.SQL_DISABLED === 'true' || process.env.USE_API_ONLY === 'true') {
+    throw new Error('SQL_DISABLED: Database operations are disabled. Use API endpoints instead.');
+  }
+
+  try {
+    return getPool();
+  } catch (error: any) {
+    if (error.message?.includes('not connected') || error.message?.includes('Database not connected')) {
+      throw new Error('SQL_DISABLED: Database operations are disabled. Use API endpoints instead.');
+    }
+    throw error;
+  }
+};
+
 export const runQuery = async <T = any>(builder: (request: sql.Request) => sql.IResult<T> | Promise<sql.IResult<T>>) => {
   // Check if SQL is disabled
   if (process.env.SQL_DISABLED === 'true' || process.env.USE_API_ONLY === 'true') {
