@@ -37,6 +37,7 @@ app.get('/api/debug', (req, res) => {
         ETIME_SQL_PASSWORD: process.env.ETIME_SQL_PASSWORD ? '***set***' : 'not set',
         SQL_DISABLED: process.env.SQL_DISABLED || 'not set',
         USE_API_ONLY: process.env.USE_API_ONLY || 'not set',
+        LOCAL_API_URL: process.env.LOCAL_API_URL || 'not set',
         FRONTEND_URL: process.env.FRONTEND_URL || 'not set',
         NODE_ENV: process.env.NODE_ENV || 'not set',
       },

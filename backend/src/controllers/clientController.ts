@@ -260,7 +260,9 @@ export const getAllClients = async (req: Request, res: Response): Promise<void> 
     // Use local API if enabled
     if (localApiService.isApiEnabled()) {
       try {
+        console.log('📡 Using local API to fetch clients');
         const clients = await localApiService.getClients({ status: status as string });
+        console.log(`✅ Local API returned ${clients.length} clients`);
         
         // Simple pagination for local API
         const pageNum = Number(page);
@@ -281,8 +283,25 @@ export const getAllClients = async (req: Request, res: Response): Promise<void> 
         });
         return;
       } catch (apiError: any) {
-        console.error('Local API error, falling back to direct SQL:', apiError.message);
-        // Fall through to direct SQL if local API fails
+        console.error('❌ Local API error:', apiError.message);
+        console.error('❌ Error details:', {
+          code: apiError.code,
+          response: apiError.response?.data,
+          status: apiError.response?.status,
+        });
+        
+        // If SQL is disabled, return error instead of falling back
+        if (process.env.SQL_DISABLED === 'true' || process.env.USE_API_ONLY === 'true') {
+          res.status(503).json({
+            success: false,
+            message: `Local API error: ${apiError.message}`,
+            error: 'Local API server is not reachable. Please check if the tunnel is running.',
+          });
+          return;
+        }
+        
+        // Fall through to direct SQL if SQL is not disabled
+        console.log('⚠️ Falling back to direct SQL connection');
       }
     }
 
