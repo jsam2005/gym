@@ -27,24 +27,33 @@ app.use(express.text({ type: ['text/plain', 'text/html', 'application/x-www-form
 app.use(morgan('dev'));
 
 // Debug endpoint - MUST work without any imports
+// Define FIRST before any middleware
 app.get('/api/debug', (req, res) => {
   try {
+    const env = {
+      ETIME_SQL_SERVER: process.env.ETIME_SQL_SERVER ? '***set***' : 'not set',
+      ETIME_SQL_DB: process.env.ETIME_SQL_DB || 'not set',
+      ETIME_SQL_USER: process.env.ETIME_SQL_USER || 'not set',
+      ETIME_SQL_PASSWORD: process.env.ETIME_SQL_PASSWORD ? '***set***' : 'not set',
+      SQL_DISABLED: process.env.SQL_DISABLED || 'not set',
+      USE_API_ONLY: process.env.USE_API_ONLY || 'not set',
+      LOCAL_API_URL: process.env.LOCAL_API_URL ? '***set***' : 'not set',
+      FRONTEND_URL: process.env.FRONTEND_URL || 'not set',
+      NODE_ENV: process.env.NODE_ENV || 'not set',
+    };
+    
     res.json({
-      env: {
-        ETIME_SQL_SERVER: process.env.ETIME_SQL_SERVER ? '***set***' : 'not set',
-        ETIME_SQL_DB: process.env.ETIME_SQL_DB || 'not set',
-        ETIME_SQL_USER: process.env.ETIME_SQL_USER || 'not set',
-        ETIME_SQL_PASSWORD: process.env.ETIME_SQL_PASSWORD ? '***set***' : 'not set',
-        SQL_DISABLED: process.env.SQL_DISABLED || 'not set',
-        USE_API_ONLY: process.env.USE_API_ONLY || 'not set',
-        LOCAL_API_URL: process.env.LOCAL_API_URL || 'not set',
-        FRONTEND_URL: process.env.FRONTEND_URL || 'not set',
-        NODE_ENV: process.env.NODE_ENV || 'not set',
-      },
+      success: true,
+      env,
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Debug endpoint error:', error);
+    res.status(500).json({ 
+      success: false,
+      error: error.message,
+      stack: process.env.NODE_ENV !== 'production' ? error.stack : undefined,
+    });
   }
 });
 
