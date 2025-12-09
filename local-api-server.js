@@ -94,26 +94,44 @@ app.post('/api/query', async (req, res) => {
 app.get('/api/clients', async (req, res) => {
   try {
     if (!pool) {
-      return res.status(503).json({ error: 'Database not connected' });
+      return res.status(503).json({ 
+        success: false,
+        error: 'Database not connected' 
+      });
     }
 
+    const { status } = req.query;
     const request = pool.request();
-    const result = await request.query(`
+    
+    let query = `
       SELECT TOP 100 
-        ClientID, 
-        ClientName, 
-        Phone, 
-        Email, 
-        Status,
-        CreatedDate
-      FROM Clients
-      ORDER BY CreatedDate DESC
-    `);
+        e.EmployeeId AS ClientID,
+        e.EmployeeName AS ClientName,
+        e.ContactNo AS Phone,
+        e.Email,
+        e.Status,
+        e.DOJ AS CreatedDate
+      FROM Employees e
+      WHERE e.EmployeeName NOT LIKE 'del_%'
+        AND LOWER(e.Status) NOT IN ('deleted', 'delete')
+    `;
+    
+    if (status) {
+      request.input('StatusFilter', sql.NVarChar(20), status);
+      query += ` AND e.Status = @StatusFilter`;
+    }
+    
+    query += ` ORDER BY e.EmployeeName ASC`;
+
+    const result = await request.query(query);
 
     res.json({ success: true, data: result.recordset });
   } catch (error) {
     console.error('Get clients error:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ 
+      success: false,
+      error: error.message 
+    });
   }
 });
 
