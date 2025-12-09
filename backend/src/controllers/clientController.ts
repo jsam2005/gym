@@ -12,6 +12,7 @@ import {
 import { createGymClient, updateGymClient, deleteGymClient } from '../data/gymClientRepository.js';
 import esslDeviceService from '../services/esslDeviceService.js';
 import etimetrackSyncService from '../services/etimetrackSyncService.js';
+import localApiService from '../services/localApiService.js';
 import { ClientEntity } from '../types/domain.js';
 import { getPool } from '../config/database.js';
 
@@ -256,6 +257,36 @@ export const getAllClients = async (req: Request, res: Response): Promise<void> 
   try {
     const { status, search, page = 1, limit = 50 } = req.query;
 
+    // Use local API if enabled
+    if (localApiService.isApiEnabled()) {
+      try {
+        const clients = await localApiService.getClients({ status: status as string });
+        
+        // Simple pagination for local API
+        const pageNum = Number(page);
+        const limitNum = Number(limit);
+        const start = (pageNum - 1) * limitNum;
+        const end = start + limitNum;
+        const paginatedClients = clients.slice(start, end);
+
+        res.json({
+          success: true,
+          clients: paginatedClients,
+          pagination: {
+            total: clients.length,
+            page: pageNum,
+            limit: limitNum,
+            pages: Math.ceil(clients.length / limitNum),
+          },
+        });
+        return;
+      } catch (apiError: any) {
+        console.error('Local API error, falling back to direct SQL:', apiError.message);
+        // Fall through to direct SQL if local API fails
+      }
+    }
+
+    // Use direct SQL connection
     const result = await fetchClients({
       status: status as string | undefined,
       search: search as string | undefined,
