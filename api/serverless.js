@@ -47,8 +47,8 @@ app.get('/api/debug', (req, res) => {
   }
 });
 
-// Health endpoint - MUST work without database connection
-app.get('/api/health', async (req, res) => {
+// Health endpoint - MUST work without ANY imports
+app.get('/api/health', (req, res) => {
   try {
     const dbConfig = {
       server: process.env.ETIME_SQL_SERVER || 'not set',
@@ -58,19 +58,10 @@ app.get('/api/health', async (req, res) => {
       useApiOnly: process.env.USE_API_ONLY || 'not set',
     };
     
-    let dbStatus = 'unknown';
-    try {
-      const { getPool } = await import('../backend/dist/config/database.js');
-      const pool = getPool();
-      dbStatus = pool.connected ? 'connected' : 'not connected';
-    } catch (dbError) {
-      dbStatus = `error: ${dbError.message}`;
-    }
-    
     res.json({ 
       status: 'OK', 
       message: 'Server is running', 
-      timestamp: new Date(),
+      timestamp: new Date().toISOString(),
       platform: 'Vercel Serverless',
       database: {
         configured: !!process.env.ETIME_SQL_SERVER,
@@ -78,7 +69,7 @@ app.get('/api/health', async (req, res) => {
         database: dbConfig.database,
         sqlDisabled: dbConfig.sqlDisabled,
         useApiOnly: dbConfig.useApiOnly,
-        connectionStatus: dbStatus,
+        connectionStatus: 'not tested (check logs for connection status)',
       },
       environment: {
         nodeEnv: process.env.NODE_ENV,
