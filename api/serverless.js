@@ -7,25 +7,6 @@ import helmet from 'helmet';
 import compression from 'compression';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// Import routes
-import clientRoutes from '../backend/dist/routes/clientRoutes.js';
-import packageRoutes from '../backend/dist/routes/packageRoutes.js';
-import biometricRoutes from '../backend/dist/routes/biometricRoutes.js';
-import accessLogRoutes from '../backend/dist/routes/accessLogRoutes.js';
-import settingsRoutes from '../backend/dist/routes/settingsRoutes.js';
-import directESSLRoutes from '../backend/dist/routes/directESSLRoutes.js';
-import tracklieRoutes from '../backend/dist/routes/tracklieRoutes.js';
-import etimetrackRoutes from '../backend/dist/routes/etimetrackRoutes.js';
-import esslTrackLiteApiRoutes from '../backend/dist/routes/esslTrackLiteApiRoutes.js';
-import { errorHandler } from '../backend/dist/middleware/errorHandler.js';
-import { handleIClockCData, handleIClockGetRequest } from '../backend/dist/controllers/directESSLController.js';
-import connectDB from '../backend/dist/config/database.js';
 
 dotenv.config();
 
@@ -50,34 +31,59 @@ app.use(morgan('dev'));
 // Initialize database connection (non-blocking)
 // Note: In serverless, connection is per-request, so we don't pre-connect
 // The database connection will be established when needed
-// Wrap in try-catch to prevent function crashes
 (async () => {
   try {
+    const { default: connectDB } = await import('../backend/dist/config/database.js');
     await connectDB();
   } catch (err) {
     console.error('Database connection error (non-fatal):', err.message);
-    console.error('Stack:', err.stack);
     // Don't throw - allow serverless function to start even if DB connection fails
-    // Routes will handle connection errors gracefully
   }
 })();
 
-// Routes
-app.use('/api/clients', clientRoutes);
-app.use('/api/packages', packageRoutes);
-app.use('/api/biometric', biometricRoutes);
-app.use('/api/access-logs', accessLogRoutes);
-app.use('/api/settings', settingsRoutes);
-app.use('/api/direct-essl', directESSLRoutes);
-app.use('/api/tracklie', tracklieRoutes);
-app.use('/api/etimetrack', etimetrackRoutes);
-app.use('/api/essl-tracklite', esslTrackLiteApiRoutes);
+// Routes - wrapped in try-catch to prevent crashes if imports fail
+try {
+  const clientRoutes = (await import('../backend/dist/routes/clientRoutes.js')).default;
+  const packageRoutes = (await import('../backend/dist/routes/packageRoutes.js')).default;
+  const biometricRoutes = (await import('../backend/dist/routes/biometricRoutes.js')).default;
+  const accessLogRoutes = (await import('../backend/dist/routes/accessLogRoutes.js')).default;
+  const settingsRoutes = (await import('../backend/dist/routes/settingsRoutes.js')).default;
+  const directESSLRoutes = (await import('../backend/dist/routes/directESSLRoutes.js')).default;
+  const tracklieRoutes = (await import('../backend/dist/routes/tracklieRoutes.js')).default;
+  const etimetrackRoutes = (await import('../backend/dist/routes/etimetrackRoutes.js')).default;
+  const esslTrackLiteApiRoutes = (await import('../backend/dist/routes/esslTrackLiteApiRoutes.js')).default;
+  const { errorHandler } = await import('../backend/dist/middleware/errorHandler.js');
+  const { handleIClockCData, handleIClockGetRequest } = await import('../backend/dist/controllers/directESSLController.js');
 
-// iClock protocol endpoints
-app.get('/iclock/cdata.aspx', handleIClockCData);
-app.post('/iclock/cdata.aspx', handleIClockCData);
-app.get('/iclock/getrequest.aspx', handleIClockGetRequest);
-app.post('/iclock/getrequest.aspx', handleIClockGetRequest);
+  app.use('/api/clients', clientRoutes);
+  app.use('/api/packages', packageRoutes);
+  app.use('/api/biometric', biometricRoutes);
+  app.use('/api/access-logs', accessLogRoutes);
+  app.use('/api/settings', settingsRoutes);
+  app.use('/api/direct-essl', directESSLRoutes);
+  app.use('/api/tracklie', tracklieRoutes);
+  app.use('/api/etimetrack', etimetrackRoutes);
+  app.use('/api/essl-tracklite', esslTrackLiteApiRoutes);
+
+  // iClock protocol endpoints
+  app.get('/iclock/cdata.aspx', handleIClockCData);
+  app.post('/iclock/cdata.aspx', handleIClockCData);
+  app.get('/iclock/getrequest.aspx', handleIClockGetRequest);
+  app.post('/iclock/getrequest.aspx', handleIClockGetRequest);
+
+  // Error handler middleware
+  app.use(errorHandler);
+} catch (routeError) {
+  console.error('Error loading routes:', routeError);
+  // Add fallback route to show error
+  app.use('/api/*', (req, res) => {
+    res.status(500).json({
+      success: false,
+      message: 'Routes failed to load',
+      error: process.env.NODE_ENV !== 'production' ? routeError.message : undefined,
+    });
+  });
+}
 
 // Health check with database status
 app.get('/api/health', async (req, res) => {
@@ -182,10 +188,5 @@ process.on('uncaughtException', (error) => {
   // In serverless, we want to handle errors gracefully
 });
 
-// Error handler middleware
-app.use(errorHandler);
-
 // Export for Vercel
-// The Express app handles routing and errors internally
 export default app;
-
