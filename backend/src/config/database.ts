@@ -53,7 +53,8 @@ const instanceName =
     // Enable encryption for Cloudflare Tunnel connections
     // If connecting via tunnel, set encrypt: true
     // For local connections, encrypt: false is fine
-    encrypt: process.env.ETIME_SQL_SERVER?.includes('tunnel') || 
+    encrypt: process.env.ETIME_SQL_SERVER?.includes('ngrok') ||
+             process.env.ETIME_SQL_SERVER?.includes('tunnel') || 
              process.env.ETIME_SQL_SERVER?.includes('cloudflare') ||
              process.env.ETIME_SQL_SERVER?.includes('.com') ||
              process.env.ETIME_SQL_SERVER?.includes('.net') ||
@@ -62,16 +63,19 @@ const instanceName =
     enableArithAbort: true,
     instanceName: instanceName || undefined, // SQLEXPRESS for named instance
     // Increased timeouts for tunnel connections
-    connectTimeout: process.env.ETIME_SQL_SERVER?.includes('tunnel') || 
+    connectTimeout: process.env.ETIME_SQL_SERVER?.includes('ngrok') ||
+                    process.env.ETIME_SQL_SERVER?.includes('tunnel') || 
                     process.env.ETIME_SQL_SERVER?.includes('cloudflare') ? 60000 : 30000,
-    requestTimeout: process.env.ETIME_SQL_SERVER?.includes('tunnel') || 
+    requestTimeout: process.env.ETIME_SQL_SERVER?.includes('ngrok') ||
+                    process.env.ETIME_SQL_SERVER?.includes('tunnel') || 
                     process.env.ETIME_SQL_SERVER?.includes('cloudflare') ? 60000 : 30000,
     // Additional options for better connection
     enableImplicitTransactions: false,
     abortTransactionOnError: false,
-    // Explicit port for tunnel connections (Cloudflare Tunnel uses standard SQL port 1433)
+    // Explicit port for tunnel connections (ngrok, Cloudflare, etc.)
     port: process.env.ETIME_SQL_PORT ? parseInt(process.env.ETIME_SQL_PORT) : 
-          (process.env.ETIME_SQL_SERVER?.includes('tunnel') || 
+          (process.env.ETIME_SQL_SERVER?.includes('ngrok') ||
+           process.env.ETIME_SQL_SERVER?.includes('tunnel') || 
            process.env.ETIME_SQL_SERVER?.includes('cloudflare') ||
            process.env.ETIME_SQL_SERVER?.includes('.com') ||
            process.env.ETIME_SQL_SERVER?.includes('.net') ||
