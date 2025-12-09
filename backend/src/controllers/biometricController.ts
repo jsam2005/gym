@@ -9,6 +9,7 @@ import {
   updateClientByEsslId,
 } from '../data/clientRepository.js';
 import esslDeviceService from '../services/esslDeviceService.js';
+import localApiService from '../services/localApiService.js';
 import { Server as SocketServer } from 'socket.io';
 import tracklieService from '../services/tracklieService.js';
 import { ClientEntity } from '../types/domain.js';
@@ -785,7 +786,38 @@ export const migrateUsersFromDevice = async (req: Request, res: Response): Promi
  */
 export const getAccessDashboard = async (req: Request, res: Response): Promise<void> => {
   try {
-    // Return empty dashboard if SQL is disabled
+    // Use local API if enabled
+    if (localApiService.isApiEnabled()) {
+      try {
+        const dashboardData = await localApiService.getBiometricDashboard();
+        const clientStats = await fetchClientStats();
+        
+        res.json({
+          success: true,
+          dashboard: {
+            todayStats: {
+              totalAttempts: dashboardData?.todayAttendance || 0,
+              granted: dashboardData?.todayAttendance || 0,
+              denied: 0,
+              successRate: 100,
+            },
+            clientStats: {
+              activeClients: clientStats.activeClients,
+              enrolledClients: clientStats.enrolledClients,
+              enrollmentRate: clientStats.enrollmentRate,
+            },
+            recentAttempts: [],
+            lastHourAttempts: 0,
+          },
+        });
+        return;
+      } catch (apiError: any) {
+        console.error('Local API error, falling back to direct SQL:', apiError.message);
+        // Fall through to direct SQL if local API fails
+      }
+    }
+
+    // Return empty dashboard if SQL is disabled (but local API not enabled)
     if (process.env.SQL_DISABLED === 'true' || process.env.USE_API_ONLY === 'true') {
       const clientStats = await fetchClientStats();
       res.json({
