@@ -153,7 +153,8 @@ const loadRoutes = async () => {
 // Middleware to load routes on first API request (except debug/health)
 app.use(async (req, res, next) => {
   // Skip route loading for debug and health endpoints
-  if (req.path === '/api/debug' || req.path === '/api/health') {
+  const skipPaths = ['/api/debug', '/api/health', '/debug', '/health'];
+  if (skipPaths.includes(req.path) || req.path.startsWith('/api/debug') || req.path.startsWith('/api/health')) {
     return next();
   }
   
@@ -161,6 +162,7 @@ app.use(async (req, res, next) => {
     await loadRoutes();
     next();
   } catch (error) {
+    console.error('Route loading error:', error);
     res.status(500).json({
       success: false,
       message: 'Routes failed to load',
