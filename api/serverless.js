@@ -50,10 +50,17 @@ app.use(morgan('dev'));
 // Initialize database connection (non-blocking)
 // Note: In serverless, connection is per-request, so we don't pre-connect
 // The database connection will be established when needed
-connectDB().catch(err => {
-  console.error('Database connection error:', err.message);
-  console.error('Stack:', err.stack);
-});
+// Wrap in try-catch to prevent function crashes
+(async () => {
+  try {
+    await connectDB();
+  } catch (err) {
+    console.error('Database connection error (non-fatal):', err.message);
+    console.error('Stack:', err.stack);
+    // Don't throw - allow serverless function to start even if DB connection fails
+    // Routes will handle connection errors gracefully
+  }
+})();
 
 // Routes
 app.use('/api/clients', clientRoutes);
@@ -149,21 +156,36 @@ app.use((err, req, res, next) => {
     timestamp: new Date().toISOString(),
   });
   
-  // Send error response
-  res.status(err.statusCode || 500).json({
-    success: false,
-    message: err.message || 'Internal Server Error',
-    path: req.path,
-    ...(process.env.NODE_ENV !== 'production' && { 
-      stack: err.stack,
-      details: err.details 
-    }),
-  });
+  // Prevent function crashes - always send response
+  if (!res.headersSent) {
+    res.status(err.statusCode || 500).json({
+      success: false,
+      message: err.message || 'Internal Server Error',
+      path: req.path,
+      ...(process.env.NODE_ENV !== 'production' && { 
+        stack: err.stack,
+        details: err.details 
+      }),
+    });
+  }
+});
+
+// Global error handler to prevent unhandled rejections from crashing the function
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  // Don't crash - log and continue
+});
+
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error);
+  // Don't crash - log and continue
+  // In serverless, we want to handle errors gracefully
 });
 
 // Error handler middleware
 app.use(errorHandler);
 
 // Export for Vercel
+// The Express app handles routing and errors internally
 export default app;
 

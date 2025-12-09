@@ -1,12 +1,20 @@
 import { io, Socket } from 'socket.io-client';
 
-const WS_URL = import.meta.env.VITE_WS_URL || 'http://localhost:5000';
+// Disable WebSocket in production (Vercel serverless doesn't support persistent connections)
+const isProduction = import.meta.env.MODE === 'production' || import.meta.env.PROD;
+const WS_URL = import.meta.env.VITE_WS_URL || (isProduction ? '' : 'http://localhost:5000');
 
 let socket: Socket | null = null;
 
-export const initSocket = (): Socket => {
+export const initSocket = (): Socket | null => {
+  // Skip WebSocket initialization in production
+  if (isProduction || !WS_URL) {
+    console.log('⚠️  WebSocket disabled in production (Vercel serverless)');
+    return null;
+  }
+
   if (!socket) {
-    socket = io('http://localhost:5000', {
+    socket = io(WS_URL, {
       transports: ['polling', 'websocket'],
       autoConnect: true,
       timeout: 20000,

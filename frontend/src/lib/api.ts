@@ -1,9 +1,9 @@
 import axios from 'axios';
 
 // Automatically use production API URL in production mode
-// In production, API is served from same origin (single IIS app)
+// In production, API is served from same origin (Vercel)
 const API_URL = import.meta.env.VITE_API_URL || 
-  (import.meta.env.MODE === 'production' 
+  (import.meta.env.MODE === 'production' || import.meta.env.PROD
     ? '/api'  // Same origin - backend serves frontend
     : 'http://localhost:5000/api');
 

@@ -130,8 +130,15 @@ const BiometricAccess = () => {
     }
   }, [newLogEntry]);
 
-  // Initialize Socket.IO
+  // Initialize Socket.IO (disabled in production - Vercel serverless doesn't support persistent connections)
   useEffect(() => {
+    // Skip WebSocket in production
+    const isProduction = import.meta.env.MODE === 'production' || import.meta.env.PROD;
+    if (isProduction) {
+      console.log('⚠️  WebSocket disabled in production (Vercel serverless)');
+      return;
+    }
+
     // Prevent multiple socket instances - check if socket already exists
     if (socket) {
       return;
@@ -369,9 +376,11 @@ const BiometricAccess = () => {
   const testDevice = async () => {
     try {
       // Test both regular and direct ESSL connection
+      const apiBaseUrl = import.meta.env.VITE_API_URL || 
+        (import.meta.env.MODE === 'production' || import.meta.env.PROD ? '/api' : 'http://localhost:5000/api');
       const [regularResponse, directResponse] = await Promise.allSettled([
         biometricAPI.testConnection(),
-        fetch('http://localhost:5000/api/direct-essl/test-direct')
+        fetch(`${apiBaseUrl}/direct-essl/test-direct`)
       ]);
       
       const regularSuccess = regularResponse.status === 'fulfilled' && regularResponse.value.data.success;

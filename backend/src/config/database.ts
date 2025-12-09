@@ -69,8 +69,13 @@ const instanceName =
     // Additional options for better connection
     enableImplicitTransactions: false,
     abortTransactionOnError: false,
-    // Explicit port for tunnel connections (Cloudflare Tunnel uses standard SQL port)
-    port: process.env.ETIME_SQL_PORT ? parseInt(process.env.ETIME_SQL_PORT) : undefined,
+    // Explicit port for tunnel connections (Cloudflare Tunnel uses standard SQL port 1433)
+    port: process.env.ETIME_SQL_PORT ? parseInt(process.env.ETIME_SQL_PORT) : 
+          (process.env.ETIME_SQL_SERVER?.includes('tunnel') || 
+           process.env.ETIME_SQL_SERVER?.includes('cloudflare') ||
+           process.env.ETIME_SQL_SERVER?.includes('.com') ||
+           process.env.ETIME_SQL_SERVER?.includes('.net') ||
+           process.env.ETIME_SQL_SERVER?.includes('.io') ? 1433 : undefined),
   } as sql.config['options'],
   pool: {
     max: 10,
@@ -168,12 +173,27 @@ const connectDB = async (): Promise<void> => {
 // Get connection pool
 export const getPool = (): sql.ConnectionPool => {
   if (!pool && !isSqlDisabled()) {
+    // In serverless, try to connect if not already connected
+    // This allows per-request connections
     throw new Error('Database not connected. SQL Server connection is required for this operation. Set up SQL connection or use API endpoints instead.');
   }
   if (!pool && isSqlDisabled()) {
     throw new Error('SQL_DISABLED: Database pool is not available in API-only mode.');
   }
-  return pool!; // Assert non-null as it's checked above
+  if (!pool) {
+    throw new Error('Database connection pool is not available. Please check your database configuration.');
+  }
+  return pool;
+};
+
+// Check if pool is available (non-throwing)
+export const isPoolAvailable = (): boolean => {
+  return pool !== null && pool.connected !== false;
+};
+
+// Try to get pool or return null (for graceful error handling)
+export const tryGetPool = (): sql.ConnectionPool | null => {
+  return pool;
 };
 
 // Close connection
