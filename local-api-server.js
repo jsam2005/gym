@@ -135,36 +135,6 @@ app.get('/api/clients', async (req, res) => {
   }
 });
 
-// Get clients by status
-app.get('/api/clients', async (req, res) => {
-  try {
-    if (!pool) {
-      return res.status(503).json({ error: 'Database not connected' });
-    }
-
-    const status = req.query.status || 'active';
-    const request = pool.request();
-    request.input('status', sql.VarChar, status);
-
-    const result = await request.query(`
-      SELECT TOP 100 
-        ClientID, 
-        ClientName, 
-        Phone, 
-        Email, 
-        Status,
-        CreatedDate
-      FROM Clients
-      WHERE Status = @status
-      ORDER BY CreatedDate DESC
-    `);
-
-    res.json({ success: true, data: result.recordset });
-  } catch (error) {
-    console.error('Get clients error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
 
 // Biometric dashboard
 app.get('/api/biometric/dashboard', async (req, res) => {
