@@ -338,6 +338,88 @@ app.get('/api/biometric/dashboard', async (req, res) => {
   }
 });
 
+// Billing endpoints (stubs - return empty data for now)
+app.get('/api/billing/clients', async (req, res) => {
+  try {
+    if (!pool) {
+      return res.status(503).json({ 
+        success: false,
+        error: 'Database not connected' 
+      });
+    }
+    // TODO: Implement full billing clients query
+    res.json({ success: true, data: [] });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.get('/api/billing/pending-overdue', async (req, res) => {
+  try {
+    if (!pool) {
+      return res.status(503).json({ 
+        success: false,
+        error: 'Database not connected' 
+      });
+    }
+    // TODO: Implement pending/overdue query
+    res.json({ 
+      success: true, 
+      data: { pending: [], overdue: [], totalPending: 0, totalOverdue: 0, totalPendingAmount: 0, totalOverdueAmount: 0 } 
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.get('/api/billing/payments', async (req, res) => {
+  try {
+    if (!pool) {
+      return res.status(503).json({ 
+        success: false,
+        error: 'Database not connected' 
+      });
+    }
+    // TODO: Implement payment history query
+    res.json({ success: true, data: [] });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.get('/api/billing/upcoming', async (req, res) => {
+  try {
+    if (!pool) {
+      return res.status(503).json({ 
+        success: false,
+        error: 'Database not connected' 
+      });
+    }
+    // TODO: Implement upcoming payments query
+    res.json({ success: true, data: [] });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.get('/api/billing/summary', async (req, res) => {
+  try {
+    if (!pool) {
+      return res.status(503).json({ 
+        success: false,
+        error: 'Database not connected' 
+      });
+    }
+    // TODO: Implement billing summary query
+    res.json({ 
+      success: true, 
+      data: { totalClients: 0, totalAmount: 0, pendingAmount: 0, thisMonthCollections: 0 } 
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Biometric logs
 app.get('/api/biometric/logs', async (req, res) => {
   try {
