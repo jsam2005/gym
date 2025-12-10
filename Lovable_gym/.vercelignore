@@ -1,0 +1,9 @@
+backend/
+node_modules/
+*.ps1
+*.md
+*.sql
+.git/
+
+
+

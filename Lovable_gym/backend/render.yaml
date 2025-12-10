@@ -1,0 +1,63 @@
+services:
+  - type: web
+    name: gym-api
+    runtime: node
+    region: singapore
+    plan: free
+    branch: main
+    rootDir: backend
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: FRONTEND_URL
+        sync: false
+        # Set this to your Vercel frontend URL: https://your-app.vercel.app
+      - key: ETIME_SQL_SERVER
+        sync: false
+        # Set this to your Cloudflare Tunnel hostname: sql-tunnel.yourdomain.com
+      - key: ETIME_SQL_DB
+        value: etimetracklite1
+      - key: ETIME_SQL_USER
+        value: essl
+      - key: ETIME_SQL_PASSWORD
+        sync: false
+        # Set your SQL Server password here
+      - key: ETIME_SQL_INSTANCE
+        sync: false
+        # Set to SQLEXPRESS if using named instance, leave empty for default instance
+      - key: SQL_DISABLED
+        value: false
+      - key: USE_API_ONLY
+        value: false
+      - key: ESSL_DEVICE_IP
+        sync: false
+        # Your local device IP (if accessible from cloud)
+      - key: ESSL_DEVICE_PORT
+        value: 4370
+      - key: ESSL_DEVICE_PASSWORD
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

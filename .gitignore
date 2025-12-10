@@ -1,0 +1,54 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Build outputs
+dist/
+**/dist/
+build/
+**/build/
+
+# Environment variables
+.env
+.env.local
+.env.production
+.env.*
+!.env.sample
+**/.env
+**/.env.local
+
+# Logs
+*.log
+**/*.log
+logs/
+**/logs/
+
+# IDE
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Large legacy directories (exclude from git)
+Employee Self Service/
+iclock/
+docs/
+*.pdf
+*.zip
+
+# Cloudflare tunnel credentials
+**/.cloudflared/*.json
+!**/.cloudflared/config.yml.sample
+
+# OS files
+Thumbs.db
+desktop.ini
+
+# Temporary files
+*.tmp
+*.temp
+*.backup
+*.bak
+
