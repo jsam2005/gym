@@ -45,7 +45,10 @@ const io = new Server(httpServer, {
       'http://localhost:8085',
       'http://localhost:3000',
       'http://localhost:5173',
-      'http://localhost:5174'
+      'http://localhost:5174',
+      // Vercel domains (allow all Vercel preview/production URLs)
+      /^https:\/\/.*\.vercel\.app$/,
+      /^https:\/\/.*\.vercel\.app\/.*$/
     ],
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     credentials: true,
@@ -68,9 +71,14 @@ app.use(cors({
     'http://localhost:8085',
     'http://localhost:3000',
     'http://localhost:5173',
-    'http://localhost:5174'
+    'http://localhost:5174',
+    // Vercel domains (allow all Vercel preview/production URLs)
+    /^https:\/\/.*\.vercel\.app$/,
+    /^https:\/\/.*\.vercel\.app\/.*$/
   ],
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
