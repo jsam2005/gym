@@ -1,11 +1,12 @@
 import axios from 'axios';
 
-// Automatically use production API URL in production mode
-// In production, API is served from same origin (Vercel)
+// API URL configuration
+// In production (Vercel): Use VITE_API_URL env var (set in Vercel dashboard)
+// In development: Use localhost
 const API_URL = import.meta.env.VITE_API_URL || 
   (import.meta.env.MODE === 'production' || import.meta.env.PROD
-    ? '/api'  // Same origin - backend serves frontend
-    : 'http://localhost:5000/api');
+    ? '/api'  // Fallback to same origin if VITE_API_URL not set
+    : 'http://localhost:5001/api');
 
 const api = axios.create({
   baseURL: API_URL,

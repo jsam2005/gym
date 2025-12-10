@@ -1,15 +1,16 @@
 import { io, Socket } from 'socket.io-client';
 
-// Disable WebSocket in production (Vercel serverless doesn't support persistent connections)
+// WebSocket configuration - Railway supports persistent connections
 const isProduction = import.meta.env.MODE === 'production' || import.meta.env.PROD;
+// In production, use same origin (Railway serves both frontend and backend)
 const WS_URL = import.meta.env.VITE_WS_URL || (isProduction ? '' : 'http://localhost:5000');
 
 let socket: Socket | null = null;
 
 export const initSocket = (): Socket | null => {
-  // Skip WebSocket initialization in production
-  if (isProduction || !WS_URL) {
-    console.log('⚠️  WebSocket disabled in production (Vercel serverless)');
+  // Skip WebSocket initialization if URL not set
+  if (!WS_URL) {
+    console.log('⚠️  WebSocket URL not configured');
     return null;
   }
 
