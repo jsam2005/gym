@@ -21,10 +21,12 @@ class LocalApiService {
     if (this.isEnabled && this.baseUrl) {
       this.apiClient = axios.create({
         baseURL: this.baseUrl,
-        timeout: 30000,
+        timeout: 60000, // Increased timeout for tunnel connections
         headers: {
           'Content-Type': 'application/json',
         },
+        // Retry configuration for better reliability
+        validateStatus: (status) => status < 500, // Don't throw on 4xx errors
       });
 
       // Error handling

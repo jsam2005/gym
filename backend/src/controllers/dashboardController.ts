@@ -20,10 +20,21 @@ export const getDashboardStats = async (req: Request, res: Response): Promise<vo
         return;
       } catch (apiError: any) {
         console.error('❌ Local API error:', apiError.message);
+        console.error('❌ Local API error details:', {
+          code: apiError.code,
+          response: apiError.response?.data,
+          status: apiError.response?.status,
+          config: apiError.config?.url,
+        });
         res.status(503).json({
           success: false,
           error: 'Unable to fetch dashboard stats from local API',
           message: apiError.message,
+          details: process.env.NODE_ENV !== 'production' ? {
+            code: apiError.code,
+            status: apiError.response?.status,
+            url: apiError.config?.url,
+          } : undefined,
         });
         return;
       }

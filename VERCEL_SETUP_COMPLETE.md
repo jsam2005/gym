@@ -3,7 +3,7 @@
 ## Your Tunnel URL
 
 ```
-LOCAL_API_URL=https://kevin-verified-rocket-paragraph.trycloudflare.com
+LOCAL_API_URL=https://handled-reid-thee-hood.trycloudflare.com
 ```
 
 **Note:** Quick tunnel URLs change each time you restart the tunnel. For production, consider creating a named tunnel for a stable URL.
@@ -24,7 +24,7 @@ LOCAL_API_URL=https://kevin-verified-rocket-paragraph.trycloudflare.com
 
 **LOCAL_API_URL**
 ```
-https://kevin-verified-rocket-paragraph.trycloudflare.com
+https://handled-reid-thee-hood.trycloudflare.com
 ```
 - Environment: Production, Preview, Development (select all)
 - Click **Save**
@@ -76,7 +76,7 @@ After adding environment variables:
 ## Important Notes
 
 ⚠️ **Quick Tunnel URLs Expire**
-- This URL (`kevin-verified-rocket-paragraph.trycloudflare.com`) will change if you restart the tunnel
+- This URL (`plain-producing-thereby-trades.trycloudflare.com`) will change if you restart the tunnel
 - For production, consider creating a **named tunnel** for stable URL
 - See `CLOUDFLARE_TUNNEL_SETUP.md` for named tunnel setup
 

@@ -275,15 +275,24 @@ app.use(async (req, res, next) => {
       code: error.code,
       path: req.path,
     });
+    
+    // Return a more helpful error message
+    const errorMessage = error.message || 'Unknown error';
+    const isRouteError = errorMessage.includes('Failed to load');
+    
     res.status(500).json({
       success: false,
-      message: 'Routes failed to load',
-      error: error.message,
-      stack: process.env.NODE_ENV !== 'production' ? error.stack : undefined,
-      details: process.env.NODE_ENV !== 'production' ? {
-        name: error.name,
-        code: error.code,
-      } : undefined,
+      message: isRouteError ? 'Routes failed to load' : 'Server error',
+      error: errorMessage,
+      path: req.path,
+      // Include more details in development
+      ...(process.env.NODE_ENV !== 'production' && {
+        stack: error.stack,
+        details: {
+          name: error.name,
+          code: error.code,
+        },
+      }),
     });
   }
 });
@@ -309,10 +318,28 @@ app.use((err, req, res, next) => {
 // Global error handlers
 process.on('unhandledRejection', (reason) => {
   console.error('Unhandled Rejection:', reason);
+  // Don't crash - log and continue
 });
 
 process.on('uncaughtException', (error) => {
   console.error('Uncaught Exception:', error);
+  // Don't crash - log and continue
 });
 
-export default app;
+// Wrap app export in try-catch to prevent module initialization crashes
+try {
+  export default app;
+} catch (error) {
+  console.error('Failed to export app:', error);
+  // Create a minimal app that at least responds to requests
+  const fallbackApp = express();
+  fallbackApp.use(express.json());
+  fallbackApp.get('*', (req, res) => {
+    res.status(500).json({
+      success: false,
+      message: 'Server initialization failed',
+      error: error.message,
+    });
+  });
+  export default fallbackApp;
+}
