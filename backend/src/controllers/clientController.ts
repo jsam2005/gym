@@ -463,7 +463,7 @@ export const updateClient = async (req: Request, res: Response): Promise<void> =
         const employeeId = parseInt(client.id);
         if (!isNaN(employeeId)) {
           await updateGymClient(employeeId, {
-            employeeCodeInDevice: client.esslUserId || client.employeeCodeInDevice || undefined,
+            employeeCodeInDevice: client.esslUserId || (client as any).employeeCodeInDevice || undefined,
             bloodGroup: (updates as any).bloodGroup,
             months: (updates as any).months,
             packageType: updates.packageType,
