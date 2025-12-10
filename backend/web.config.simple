@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<configuration>
+  <system.webServer>
+    <handlers>
+      <add name="iisnode" path="dist/server.js" verb="*" modules="iisnode"/>
+    </handlers>
+    <iisnode 
+      node_env="production"
+      nodeProcessCountPerApplication="1"
+      maxConcurrentRequestsPerProcess="1024"
+      loggingEnabled="true"
+      logDirectory="iisnode"
+      devErrorsEnabled="true"
+    />
+    <httpErrors existingResponse="PassThrough" />
+    <staticContent>
+      <mimeMap fileExtension=".json" mimeType="application/json" />
+      <mimeMap fileExtension=".woff" mimeType="application/font-woff" />
+      <mimeMap fileExtension=".woff2" mimeType="application/font-woff2" />
+    </staticContent>
+  </system.webServer>
+</configuration>
+
+
+<configuration>
+  <system.webServer>
+    <handlers>
+      <add name="iisnode" path="dist/server.js" verb="*" modules="iisnode"/>
+    </handlers>
+    <iisnode 
+      node_env="production"
+      nodeProcessCountPerApplication="1"
+      maxConcurrentRequestsPerProcess="1024"
+      loggingEnabled="true"
+      logDirectory="iisnode"
+      devErrorsEnabled="true"
+    />
+    <httpErrors existingResponse="PassThrough" />
+    <staticContent>
+      <mimeMap fileExtension=".json" mimeType="application/json" />
+      <mimeMap fileExtension=".woff" mimeType="application/font-woff" />
+      <mimeMap fileExtension=".woff2" mimeType="application/font-woff2" />
+    </staticContent>
+  </system.webServer>
+</configuration>
+
+
+
+
+
+
