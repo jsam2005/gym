@@ -1,55 +1,114 @@
-import { Users, UserCheck, UserX, UserPlus, CreditCard, DollarSign, Clock, ShoppingBag } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Users, UserCheck, UserX, UserPlus, CreditCard, DollarSign, Clock, ShoppingBag, AlertCircle } from "lucide-react";
 import { KPICard } from "@/components/KPICard";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-
-const kpiData = [
-  { title: "All Clients", value: "2,500", icon: Users, variant: "default" as const },
-  { title: "Active Clients", value: "284", icon: UserCheck, variant: "success" as const },
-  { title: "Inactive Clients", value: "98", icon: UserX, variant: "warning" as const },
-  { title: "Renewal Clients", value: "300", icon: UserPlus, variant: "danger" as const },
-];
-
-const secondaryKpis = [
-  { title: "Number of Billings", value: "40", icon: CreditCard, subtitle: "This month" },
-  { title: "Total Sales", value: "₹30,500", icon: DollarSign, subtitle: "Revenue" },
-  { title: "Pending Amount List", value: "123", icon: Clock, subtitle: "Outstanding" },
-  { title: "Product Sales", value: "30", icon: ShoppingBag, subtitle: "Items sold" },
-];
-
-const chartData = [
-  { month: "Jan", value: 45 },
-  { month: "Feb", value: 55 },
-  { month: "Mar", value: 42 },
-  { month: "Apr", value: 70 },
-  { month: "May", value: 65 },
-  { month: "Jun", value: 58 },
-  { month: "Jul", value: 75 },
-  { month: "Aug", value: 68 },
-  { month: "Sep", value: 72 },
-  { month: "Oct", value: 80 },
-  { month: "Nov", value: 78 },
-  { month: "Dec", value: 85 },
-];
+import { dashboardAPI } from "@/lib/api";
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    allClients: 0,
+    activeClients: 0,
+    inactiveClients: 0,
+    renewalClients: 0,
+    totalBillings: 0,
+    totalSales: 0,
+    pendingAmount: 0,
+    thisMonthCollections: 0,
+    pendingClients: 0,
+    overdueClients: 0,
+    monthlyGrowth: [] as { month: string; value: number }[],
+  });
 
-  const handleAddClient = () => {
-    navigate("/clients/add");
+  useEffect(() => {
+    fetchDashboardStats();
+  }, []);
+
+  // Listen for client update events to refresh dashboard stats
+  useEffect(() => {
+    const handleClientUpdate = () => {
+      fetchDashboardStats();
+    };
+    
+    window.addEventListener('clientUpdated', handleClientUpdate);
+    return () => window.removeEventListener('clientUpdated', handleClientUpdate);
+  }, []);
+
+  const fetchDashboardStats = async () => {
+    try {
+      setLoading(true);
+      const response = await dashboardAPI.getStats();
+      if (response.data.success) {
+        setStats(response.data.data);
+      }
+    } catch (error: any) {
+      console.error("Error fetching dashboard stats:", error);
+    } finally {
+      setLoading(false);
+    }
   };
+
+  // Add Client feature hidden - clients are added via device and fetched via middleware
+  // const handleAddClient = () => {
+  //   navigate("/clients/add");
+  // };
+
+  const kpiData = [
+    { title: "All Clients", value: stats.allClients.toLocaleString(), icon: Users, variant: "default" as const },
+    { title: "Active Clients", value: stats.activeClients.toLocaleString(), icon: UserCheck, variant: "success" as const },
+    { title: "Inactive Clients", value: stats.inactiveClients.toLocaleString(), icon: UserX, variant: "warning" as const },
+    { title: "Renewal Clients", value: stats.renewalClients.toLocaleString(), icon: UserPlus, variant: "danger" as const },
+  ];
+
+  const secondaryKpis = [
+    { title: "Number of Billings", value: stats.totalBillings.toLocaleString(), icon: CreditCard, subtitle: "This month" },
+    { title: "Total Sales", value: `₹${stats.totalSales.toLocaleString()}`, icon: DollarSign, subtitle: "Revenue" },
+    { title: "Pending Amount", value: `₹${stats.pendingAmount.toLocaleString()}`, icon: Clock, subtitle: "Outstanding" },
+    { title: "Pending Clients", value: `${stats.pendingClients}`, icon: AlertCircle, subtitle: `${stats.overdueClients} overdue` },
+  ];
+
+  const chartData = stats.monthlyGrowth.length > 0 
+    ? stats.monthlyGrowth 
+    : [
+        { month: "Jan", value: 0 },
+        { month: "Feb", value: 0 },
+        { month: "Mar", value: 0 },
+        { month: "Apr", value: 0 },
+        { month: "May", value: 0 },
+        { month: "Jun", value: 0 },
+        { month: "Jul", value: 0 },
+        { month: "Aug", value: 0 },
+        { month: "Sep", value: 0 },
+        { month: "Oct", value: 0 },
+        { month: "Nov", value: 0 },
+        { month: "Dec", value: 0 },
+      ];
+
+  if (loading) {
+    return (
+      <div className="p-8 animate-fade-in">
+        <PageHeader title="Dashboard" showSearch={false} />
+        <div className="flex items-center justify-center h-64">
+          <div className="text-gray-500">Loading dashboard data...</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-8 animate-fade-in">
       <PageHeader 
         title="Dashboard" 
         showSearch={false}
-        actionButton={{
-          label: "Add New Client",
-          onClick: handleAddClient
-        }}
+        // Add Client button hidden - clients are added via device and fetched via middleware
+        // actionButton={{
+        //   label: "Add New Client",
+        //   onClick: handleAddClient
+        // }}
       />
       
       {/* Primary KPI Cards with staggered animation */}

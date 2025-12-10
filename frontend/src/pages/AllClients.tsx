@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { RefreshCw, Search } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { GymTable, Client } from "@/components/GymTable";
@@ -12,6 +12,7 @@ import { clientAPI } from "@/lib/api";
 const AllClients = () => {
   console.log("AllClients component is rendering");
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
@@ -20,7 +21,6 @@ const AllClients = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [deleting, setDeleting] = useState<string | null>(null);
-  const [syncing, setSyncing] = useState<string | null>(null);
 
   // Fetch clients from API - extracted to be reusable
   const fetchClients = async (isRefresh = false) => {
@@ -41,14 +41,22 @@ const AllClients = () => {
             name: `${client.firstName || ''} ${client.lastName || ''}`.trim() || 'Unknown',
             contact: client.phone || '',
             status: client.status || 'inactive',
-            billingDate: client.packageStartDate 
-              ? new Date(client.packageStartDate).toLocaleDateString('en-GB', { 
-              day: 'numeric', 
-              month: 'long', 
-              year: 'numeric' 
+            billingDate: (client as any).billingDate 
+              ? new Date((client as any).billingDate).toLocaleDateString('en-GB', { 
+                  day: 'numeric', 
+                  month: 'long', 
+                  year: 'numeric' 
                 })
-              : 'N/A',
-            duration: client.packageType || 'N/A'
+              : client.packageStartDate 
+                ? new Date(client.packageStartDate).toLocaleDateString('en-GB', { 
+                    day: 'numeric', 
+                    month: 'long', 
+                    year: 'numeric' 
+                  })
+                : 'N/A',
+            duration: (client as any).months 
+              ? `${(client as any).months} month${(client as any).months > 1 ? 's' : ''}` 
+              : client.packageType || 'N/A'
           }))
           // Remove duplicates based on EmployeeId (id field)
           .filter((client: any, index: number, self: any[]) => 
@@ -71,6 +79,25 @@ const AllClients = () => {
   // Initial fetch on component mount
   useEffect(() => {
     fetchClients(false);
+  }, []);
+
+  // Refetch when navigating back from edit page
+  useEffect(() => {
+    if (location.state?.refresh) {
+      fetchClients(false);
+      // Clear the refresh flag
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
+
+  // Listen for client update events to refresh data
+  useEffect(() => {
+    const handleClientUpdate = () => {
+      fetchClients(false);
+    };
+    
+    window.addEventListener('clientUpdated', handleClientUpdate);
+    return () => window.removeEventListener('clientUpdated', handleClientUpdate);
   }, []);
 
   const filteredClients = clients.filter(client =>
@@ -113,39 +140,12 @@ const AllClients = () => {
     navigate(`/clients/edit/${client.id}`);
   };
 
-  const handleSyncToDevice = async (client: Client) => {
-    setSyncing(String(client.id));
-    try {
-      const response = await clientAPI.syncToDevice(String(client.id));
-      if (response.data.success) {
-        toast({
-          title: "Sync Successful",
-          description: response.data.deviceRegistered 
-            ? `${client.name} has been synced to the device successfully.`
-            : `${client.name} is in the database. ${response.data.deviceMessage || 'Device sync may require middleware.'}`,
-        });
-      } else {
-        toast({
-          title: "Sync Failed",
-          description: response.data.message || "Failed to sync client to device",
-          variant: "destructive"
-        });
-      }
-    } catch (error: any) {
-      console.error("Error syncing client to device:", error);
-      toast({
-        title: "Error",
-        description: error.response?.data?.message || "Failed to sync client to device",
-        variant: "destructive"
-      });
-    } finally {
-      setSyncing(null);
-    }
-  };
+  // Sync button removed - clients are synced via middleware
 
-  const handleAddClient = () => {
-    navigate("/clients/add");
-  };
+  // Add Client feature hidden - clients are added via device and fetched via middleware
+  // const handleAddClient = () => {
+  //   navigate("/clients/add");
+  // };
 
   const handleRefresh = () => {
     fetchClients(true);
@@ -176,12 +176,13 @@ const AllClients = () => {
             {refreshing ? 'Refreshing...' : 'Refresh'}
           </Button>
           
-          <Button 
+          {/* Add Client button hidden - clients are added via device and fetched via middleware */}
+          {/* <Button 
             onClick={handleAddClient}
             className="bg-sidebar-active hover:bg-sidebar-active/90"
           >
             Add New Client
-          </Button>
+          </Button> */}
         </div>
       </div>
       
@@ -195,9 +196,7 @@ const AllClients = () => {
             onView={handleView}
             onDelete={handleDelete}
             onEdit={handleEdit}
-            onSync={handleSyncToDevice}
             deleting={deleting}
-            syncing={syncing}
           />
       )}
 

@@ -333,7 +333,47 @@ export const getClients = async (params: {
     index === self.findIndex((c) => c.id === client.id)
   );
   
-  const clients = uniqueClients;
+  // Fetch and merge GymClients data for each client
+  const clients = await Promise.all(uniqueClients.map(async (client) => {
+    try {
+      const employeeId = parseInt(client.id);
+      if (!isNaN(employeeId)) {
+        const { getGymClientByEmployeeId } = await import('./gymClientRepository.js');
+        const gymClient = await getGymClientByEmployeeId(employeeId);
+        
+        if (gymClient) {
+          // Merge GymClients data into client
+          client.packageType = gymClient.packageType || client.packageType;
+          client.packageAmount = gymClient.totalAmount || client.packageAmount;
+          client.amountPaid = gymClient.amountPaid || client.amountPaid;
+          client.pendingAmount = gymClient.pendingAmount || client.pendingAmount;
+          client.packageEndDate = gymClient.remainingDate ? gymClient.remainingDate.toISOString() : client.packageEndDate;
+        // Add GymClients fields to client object (extended properties)
+        (client as any).bloodGroup = gymClient.bloodGroup;
+        (client as any).months = gymClient.months;
+        (client as any).preferredTimings = gymClient.preferredTimings;
+        (client as any).paymentMode = gymClient.paymentMode;
+        (client as any).billingDate = gymClient.billingDate ? gymClient.billingDate.toISOString() : undefined;
+        }
+      }
+    } catch (gymClientError: any) {
+      // Silently continue if GymClients data can't be fetched
+      console.debug(`⚠️ Could not fetch GymClients data for client ${client.id}: ${gymClientError.message}`);
+    }
+    
+    // Map actual employee data (not just defaults)
+    const row = recordsets?.[0]?.find((r: any) => String(r.EmployeeId) === client.id);
+    if (row) {
+      client.email = row.Email || client.email;
+      client.phone = row.Phone || client.phone;
+      client.gender = (row.Gender?.toLowerCase() as 'male' | 'female' | 'other') || client.gender;
+      client.address = row.Address || client.address;
+      client.dateOfBirth = row.DateOfBirth ? new Date(row.DateOfBirth).toISOString() : client.dateOfBirth;
+      client.fingerprintEnrolled = row.HasBiometric === 1;
+    }
+    
+    return client;
+  }));
   const totalRow = recordsets?.[1]?.[0] as { Total?: number } | undefined;
   const total = Number(totalRow?.Total || 0);
 
@@ -399,8 +439,11 @@ export const getClientById = async (id: string): Promise<ClientEntity | null> =>
         client.amountPaid = gymClient.amountPaid || client.amountPaid;
         client.pendingAmount = gymClient.pendingAmount || client.pendingAmount;
         client.packageEndDate = gymClient.remainingDate ? gymClient.remainingDate.toISOString() : client.packageEndDate;
-        // Note: bloodGroup, months, trainer, timings, paymentMode are not in ClientEntity
-        // They would need to be added to the entity type if needed
+        // Add GymClients fields to client object (extended properties)
+        (client as any).bloodGroup = gymClient.bloodGroup;
+        (client as any).months = gymClient.months;
+        (client as any).preferredTimings = gymClient.preferredTimings;
+        (client as any).paymentMode = gymClient.paymentMode;
       }
     } catch (gymClientError: any) {
       console.warn(`⚠️ Could not fetch GymClients data: ${gymClientError.message}`);

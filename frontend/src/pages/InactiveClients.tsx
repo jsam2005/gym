@@ -26,11 +26,19 @@ const InactiveClients = () => {
             name: `${client.firstName} ${client.lastName}`,
             contact: client.phone,
             status: client.status,
-            billingDate: new Date(client.packageStartDate).toLocaleDateString('en-GB', { 
-              day: 'numeric', 
-              month: 'long', 
-              year: 'numeric' 
-            }),
+            billingDate: (client as any).billingDate 
+              ? new Date((client as any).billingDate).toLocaleDateString('en-GB', { 
+                  day: 'numeric', 
+                  month: 'long', 
+                  year: 'numeric' 
+                })
+              : client.packageStartDate 
+                ? new Date(client.packageStartDate).toLocaleDateString('en-GB', { 
+                    day: 'numeric', 
+                    month: 'long', 
+                    year: 'numeric' 
+                  })
+                : 'N/A',
             duration: client.packageType
           }));
           setClients(transformedClients);
@@ -44,6 +52,16 @@ const InactiveClients = () => {
     };
 
     fetchInactiveClients();
+  }, []);
+
+  // Listen for client update events to refresh data
+  useEffect(() => {
+    const handleClientUpdate = () => {
+      fetchInactiveClients();
+    };
+    
+    window.addEventListener('clientUpdated', handleClientUpdate);
+    return () => window.removeEventListener('clientUpdated', handleClientUpdate);
   }, []);
 
   const filteredClients = clients.filter(client =>
@@ -68,10 +86,11 @@ const InactiveClients = () => {
         title="Inactive Clients List" 
         searchPlaceholder="Search inactive clients..."
         onSearch={setSearchTerm}
-        actionButton={{
-          label: "Add New Client",
-          onClick: () => navigate("/clients/add")
-        }}
+        // Add Client button hidden - clients are added via device and fetched via middleware
+        // actionButton={{
+        //   label: "Add New Client",
+        //   onClick: () => navigate("/clients/add")
+        // }}
       />
       
       {loading ? (

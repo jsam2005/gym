@@ -319,10 +319,35 @@ export const testDirectConnection = async (req: Request, res: Response): Promise
     });
     
   } catch (error: any) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
+    const errorMessage = error.message || 'Unknown error';
+    const isConnectionError = errorMessage.includes('ECONNREFUSED') || 
+                              errorMessage.includes('ETIMEDOUT') || 
+                              errorMessage.includes('ENETUNREACH');
+    
+    if (isConnectionError) {
+      res.status(503).json({
+        success: false,
+        message: `Cannot connect to ESSL device at ${process.env.ESSL_DEVICE_IP || '192.168.0.5'}:${process.env.ESSL_DEVICE_PORT || '4370'}`,
+        error: errorMessage,
+        troubleshooting: {
+          deviceIp: process.env.ESSL_DEVICE_IP || '192.168.0.5',
+          port: process.env.ESSL_DEVICE_PORT || '4370',
+          suggestions: [
+            'Check if the device is powered on and connected to the network',
+            'Verify the device IP address in device settings',
+            'Ensure the device and server are on the same network',
+            'Check firewall settings - port 4370 should be open',
+            'Try pinging the device IP address',
+            'Update ESSL_DEVICE_IP in your .env file if the IP has changed'
+          ]
+        }
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        message: errorMessage
+      });
+    }
   }
 };
 

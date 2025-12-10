@@ -12,6 +12,7 @@ export interface GymClientData {
   amountPaid?: number;
   pendingAmount?: number;
   remainingDate?: Date;
+  billingDate?: Date;
   preferredTimings?: string;
   paymentMode?: string;
 }
@@ -33,18 +34,19 @@ export const createGymClient = async (data: GymClientData): Promise<void> => {
     request.input('AmountPaid', sql.Decimal(10, 2), data.amountPaid || null);
     request.input('PendingAmount', sql.Decimal(10, 2), data.pendingAmount || null);
     request.input('RemainingDate', sql.DateTime, data.remainingDate || null);
+    request.input('BillingDate', sql.DateTime, data.billingDate || null);
     request.input('PreferredTimings', sql.NVarChar(50), data.preferredTimings || null);
     request.input('PaymentMode', sql.NVarChar(50), data.paymentMode || null);
     
     return request.query(`
       INSERT INTO GymClients (
         EmployeeId, EmployeeCodeInDevice, BloodGroup, Months, Trainer,
-        PackageType, TotalAmount, AmountPaid, PendingAmount, RemainingDate,
+        PackageType, TotalAmount, AmountPaid, PendingAmount, RemainingDate, BillingDate,
         PreferredTimings, PaymentMode, CreatedAt, UpdatedAt
       )
       VALUES (
         @EmployeeId, @EmployeeCodeInDevice, @BloodGroup, @Months, @Trainer,
-        @PackageType, @TotalAmount, @AmountPaid, @PendingAmount, @RemainingDate,
+        @PackageType, @TotalAmount, @AmountPaid, @PendingAmount, @RemainingDate, @BillingDate,
         @PreferredTimings, @PaymentMode, GETDATE(), GETDATE()
       )
     `);
@@ -72,20 +74,26 @@ export const getGymClientByEmployeeId = async (employeeId: number): Promise<GymC
     
     const result = await runQuery(async (request) => {
       request.input('EmployeeId', sql.Int, employeeId);
+      // Check if BillingDate column exists before querying
+      const columnCheck = await pool.request().query(`
+        SELECT COLUMN_NAME 
+        FROM INFORMATION_SCHEMA.COLUMNS 
+        WHERE TABLE_NAME = 'GymClients' 
+        AND COLUMN_NAME = 'BillingDate'
+      `);
+      
+      const hasBillingDate = columnCheck.recordset.length > 0;
+      
+      const selectFields = hasBillingDate 
+        ? `EmployeeId, EmployeeCodeInDevice, BloodGroup, Months, Trainer, PackageType,
+           TotalAmount, AmountPaid, PendingAmount, RemainingDate, BillingDate,
+           PreferredTimings, PaymentMode`
+        : `EmployeeId, EmployeeCodeInDevice, BloodGroup, Months, Trainer, PackageType,
+           TotalAmount, AmountPaid, PendingAmount, RemainingDate,
+           PreferredTimings, PaymentMode`;
+      
       return request.query(`
-        SELECT 
-          EmployeeId,
-          EmployeeCodeInDevice,
-          BloodGroup,
-          Months,
-          Trainer,
-          PackageType,
-          TotalAmount,
-          AmountPaid,
-          PendingAmount,
-          RemainingDate,
-          PreferredTimings,
-          PaymentMode
+        SELECT ${selectFields}
         FROM GymClients
         WHERE EmployeeId = @EmployeeId
       `);
@@ -107,6 +115,7 @@ export const getGymClientByEmployeeId = async (employeeId: number): Promise<GymC
       amountPaid: row.AmountPaid ? parseFloat(row.AmountPaid) : undefined,
       pendingAmount: row.PendingAmount ? parseFloat(row.PendingAmount) : undefined,
       remainingDate: row.RemainingDate ? new Date(row.RemainingDate) : undefined,
+      billingDate: row.BillingDate ? new Date(row.BillingDate) : undefined, // Will be undefined if column doesn't exist
       preferredTimings: row.PreferredTimings,
       paymentMode: row.PaymentMode,
     };
@@ -120,11 +129,57 @@ export const getGymClientByEmployeeId = async (employeeId: number): Promise<GymC
 };
 
 /**
- * Update gym client record
+ * Update gym client record (UPSERT - creates if doesn't exist, updates if exists)
  */
 export const updateGymClient = async (employeeId: number, updates: Partial<GymClientData>): Promise<void> => {
   const pool = await ensurePool();
   
+  // First, check if record exists
+  const existingRecord = await getGymClientByEmployeeId(employeeId);
+  
+  // Get EmployeeCodeInDevice from Employees table if not provided
+  let employeeCodeInDevice = updates.employeeCodeInDevice;
+  if (!employeeCodeInDevice && existingRecord) {
+    employeeCodeInDevice = existingRecord.employeeCodeInDevice;
+  } else if (!employeeCodeInDevice) {
+    // Fetch from Employees table
+    try {
+      const empResult = await pool.request()
+        .input('EmployeeId', sql.Int, employeeId)
+        .query('SELECT EmployeeCodeInDevice FROM Employees WHERE EmployeeId = @EmployeeId');
+      if (empResult.recordset[0]) {
+        employeeCodeInDevice = empResult.recordset[0].EmployeeCodeInDevice;
+      }
+    } catch (error: any) {
+      console.warn(`⚠️ Could not fetch EmployeeCodeInDevice: ${error.message}`);
+    }
+  }
+  
+  if (!employeeCodeInDevice) {
+    throw new Error('EmployeeCodeInDevice is required but not found');
+  }
+  
+  // If record doesn't exist, create it
+  if (!existingRecord) {
+    await createGymClient({
+      employeeId,
+      employeeCodeInDevice,
+      bloodGroup: updates.bloodGroup,
+      months: updates.months,
+      trainer: updates.trainer,
+      packageType: updates.packageType,
+      totalAmount: updates.totalAmount,
+      amountPaid: updates.amountPaid,
+      pendingAmount: updates.pendingAmount,
+      remainingDate: updates.remainingDate,
+      billingDate: updates.billingDate,
+      preferredTimings: updates.preferredTimings,
+      paymentMode: updates.paymentMode,
+    });
+    return; // Record created, we're done
+  }
+  
+  // Record exists, update it
   const updateFields: string[] = [];
   const updateParams: { [key: string]: any } = {};
   
@@ -159,6 +214,23 @@ export const updateGymClient = async (employeeId: number, updates: Partial<GymCl
   if (updates.remainingDate !== undefined) {
     updateParams['RemainingDate'] = updates.remainingDate || null;
     updateFields.push('RemainingDate = @RemainingDate');
+  }
+  // Check if BillingDate column exists
+  const columnCheck = await pool.request().query(`
+    SELECT COLUMN_NAME 
+    FROM INFORMATION_SCHEMA.COLUMNS 
+    WHERE TABLE_NAME = 'GymClients' 
+    AND COLUMN_NAME = 'BillingDate'
+  `);
+  const hasBillingDateColumn = columnCheck.recordset.length > 0;
+  
+  if (updates.billingDate !== undefined) {
+    updateParams['BillingDate'] = updates.billingDate || null;
+    if (hasBillingDateColumn) {
+      updateFields.push('BillingDate = @BillingDate');
+    } else {
+      console.warn('⚠️ BillingDate column does not exist. Please run ADD_BILLING_DATE_COLUMN.sql');
+    }
   }
   if (updates.preferredTimings !== undefined) {
     updateParams['PreferredTimings'] = updates.preferredTimings || null;
@@ -201,6 +273,9 @@ export const updateGymClient = async (employeeId: number, updates: Partial<GymCl
     }
     if (updateParams['RemainingDate'] !== undefined) {
       request.input('RemainingDate', sql.DateTime, updateParams['RemainingDate']);
+    }
+    if (hasBillingDateColumn && updateParams['BillingDate'] !== undefined) {
+      request.input('BillingDate', sql.DateTime, updateParams['BillingDate']);
     }
     if (updateParams['PreferredTimings'] !== undefined) {
       request.input('PreferredTimings', sql.NVarChar(50), updateParams['PreferredTimings']);

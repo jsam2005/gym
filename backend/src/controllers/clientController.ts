@@ -36,6 +36,57 @@ const defaultAccessSchedule = () => [
   { day: 'sunday', startTime: '06:00', endTime: '22:00', enabled: false },
 ];
 
+/**
+ * Convert 12-hour time with AM/PM to 24-hour format (HH:MM)
+ * @param time - Time in HH:MM format (from time input)
+ * @param amPm - 'AM' or 'PM'
+ * @returns Time in 24-hour format (HH:MM)
+ */
+const convertTo24Hour = (time: string, amPm: string): string => {
+  if (!time) return '06:00';
+  
+  const [hours, minutes] = time.split(':').map(Number);
+  let hour24 = hours;
+  
+  if (amPm === 'PM' && hours !== 12) {
+    hour24 = hours + 12;
+  } else if (amPm === 'AM' && hours === 12) {
+    hour24 = 0;
+  }
+  
+  return `${hour24.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+};
+
+/**
+ * Create access schedule from preferred timings string
+ * Format: "HH:MM AM - HH:MM PM" or "06:00 AM - 10:00 PM"
+ */
+const createAccessScheduleFromTimings = (timings: string | undefined) => {
+  if (!timings) return defaultAccessSchedule();
+  
+  // Parse format: "06:00 AM - 10:00 PM"
+  const match = timings.match(/(\d{1,2}):(\d{2})\s*(AM|PM)\s*-\s*(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+  if (!match) {
+    console.warn(`⚠️ Could not parse timings format: ${timings}, using default schedule`);
+    return defaultAccessSchedule();
+  }
+  
+  const [, fromHour, fromMin, fromAmPm, toHour, toMin, toAmPm] = match;
+  const startTime = convertTo24Hour(`${fromHour}:${fromMin}`, fromAmPm.toUpperCase());
+  const endTime = convertTo24Hour(`${toHour}:${toMin}`, toAmPm.toUpperCase());
+  
+  // Apply same schedule to all weekdays (Mon-Sat), Sunday disabled by default
+  return [
+    { day: 'monday', startTime, endTime, enabled: true },
+    { day: 'tuesday', startTime, endTime, enabled: true },
+    { day: 'wednesday', startTime, endTime, enabled: true },
+    { day: 'thursday', startTime, endTime, enabled: true },
+    { day: 'friday', startTime, endTime, enabled: true },
+    { day: 'saturday', startTime, endTime, enabled: true },
+    { day: 'sunday', startTime, endTime, enabled: false },
+  ];
+};
+
 const normalizeClientPayload = (input: any): Partial<ClientEntity> => {
   const clientData = { ...input };
   // Only set defaults for required fields, leave others as undefined if not provided
@@ -61,10 +112,15 @@ const normalizeClientPayload = (input: any): Partial<ClientEntity> => {
     clientData.paymentStatus = 'pending';
   }
 
-  clientData.accessSchedule =
-    Array.isArray(clientData.accessSchedule) && clientData.accessSchedule.length > 0
-      ? clientData.accessSchedule
-      : defaultAccessSchedule();
+  // Create access schedule from preferred timings if provided, otherwise use default
+  if ((input as any).timings && !clientData.accessSchedule) {
+    clientData.accessSchedule = createAccessScheduleFromTimings((input as any).timings);
+  } else {
+    clientData.accessSchedule =
+      Array.isArray(clientData.accessSchedule) && clientData.accessSchedule.length > 0
+        ? clientData.accessSchedule
+        : defaultAccessSchedule();
+  }
 
   clientData.isAccessActive = clientData.isAccessActive ?? false;
   clientData.status = clientData.status || 'active';
@@ -85,14 +141,10 @@ export const createClient = async (req: Request, res: Response): Promise<void> =
     const normalizedPayload = normalizeClientPayload(req.body);
     
     // Step 1: Create employee in Employees table
-    const employeeName = `${normalizedPayload.firstName || ''} ${normalizedPayload.lastName || ''}`.trim();
-    if (!employeeName) {
-      res.status(400).json({
-        success: false,
-        message: 'First name and last name are required',
-      });
-      return;
-    }
+    // All fields are optional - use defaults if not provided
+    const firstName = normalizedPayload.firstName || '';
+    const lastName = normalizedPayload.lastName || '';
+    const employeeName = `${firstName} ${lastName}`.trim() || 'Client';
     
     console.log(`📝 Creating employee: ${employeeName}`);
     const { employeeId, employeeCodeInDevice } = await createEmployeeInSQL({
@@ -403,7 +455,7 @@ export const updateClient = async (req: Request, res: Response): Promise<void> =
 
     // Update GymClients table if additional fields are provided
     const hasGymClientUpdates = Object.keys(updates).some(key => 
-      ['bloodGroup', 'months', 'trainer', 'packageType', 'totalAmount', 'amountPaid', 'pendingAmount', 'remainingDate', 'timings', 'paymentMode'].includes(key)
+      ['bloodGroup', 'months', 'packageType', 'totalAmount', 'amountPaid', 'pendingAmount', 'remainingDate', 'billingDate', 'timings', 'paymentMode'].includes(key)
     );
 
     if (hasGymClientUpdates && client.id) {
@@ -411,14 +463,15 @@ export const updateClient = async (req: Request, res: Response): Promise<void> =
         const employeeId = parseInt(client.id);
         if (!isNaN(employeeId)) {
           await updateGymClient(employeeId, {
+            employeeCodeInDevice: client.esslUserId || client.employeeCodeInDevice || undefined,
             bloodGroup: (updates as any).bloodGroup,
             months: (updates as any).months,
-            trainer: (updates as any).trainer,
             packageType: updates.packageType,
             totalAmount: updates.packageAmount,
             amountPaid: updates.amountPaid,
             pendingAmount: updates.pendingAmount,
             remainingDate: updates.packageEndDate ? new Date(updates.packageEndDate) : undefined,
+            billingDate: (updates as any).billingDate ? new Date((updates as any).billingDate) : undefined,
             preferredTimings: (updates as any).timings,
             paymentMode: (updates as any).paymentMode,
           });

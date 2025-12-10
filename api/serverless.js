@@ -98,31 +98,118 @@ const loadRoutes = async () => {
   if (routeLoadError) throw routeLoadError;
   
   try {
-    const [
-      { default: clientRoutes },
-      { default: packageRoutes },
-      { default: biometricRoutes },
-      { default: accessLogRoutes },
-      { default: settingsRoutes },
-      { default: directESSLRoutes },
-      { default: tracklieRoutes },
-      { default: etimetrackRoutes },
-      { default: esslTrackLiteApiRoutes },
-      { errorHandler },
-      { handleIClockCData, handleIClockGetRequest }
-    ] = await Promise.all([
-      import('../backend/dist/routes/clientRoutes.js'),
-      import('../backend/dist/routes/packageRoutes.js'),
-      import('../backend/dist/routes/biometricRoutes.js'),
-      import('../backend/dist/routes/accessLogRoutes.js'),
-      import('../backend/dist/routes/settingsRoutes.js'),
-      import('../backend/dist/routes/directESSLRoutes.js'),
-      import('../backend/dist/routes/tracklieRoutes.js'),
-      import('../backend/dist/routes/etimetrackRoutes.js'),
-      import('../backend/dist/routes/esslTrackLiteApiRoutes.js'),
-      import('../backend/dist/middleware/errorHandler.js'),
-      import('../backend/dist/controllers/directESSLController.js')
-    ]);
+    // Import routes one by one to identify which one fails
+    console.log('📦 Loading routes...');
+    
+    let clientRoutes, packageRoutes, biometricRoutes, accessLogRoutes, settingsRoutes;
+    let directESSLRoutes, tracklieRoutes, etimetrackRoutes, esslTrackLiteApiRoutes;
+    let dashboardRoutes, billingRoutes, errorHandler, handleIClockCData, handleIClockGetRequest;
+    
+    try {
+      console.log('  Loading clientRoutes...');
+      ({ default: clientRoutes } = await import('../backend/dist/routes/clientRoutes.js'));
+    } catch (e) {
+      console.error('❌ Failed to load clientRoutes:', e.message);
+      throw new Error(`Failed to load clientRoutes: ${e.message}`);
+    }
+    
+    try {
+      console.log('  Loading packageRoutes...');
+      ({ default: packageRoutes } = await import('../backend/dist/routes/packageRoutes.js'));
+    } catch (e) {
+      console.error('❌ Failed to load packageRoutes:', e.message);
+      throw new Error(`Failed to load packageRoutes: ${e.message}`);
+    }
+    
+    try {
+      console.log('  Loading biometricRoutes...');
+      ({ default: biometricRoutes } = await import('../backend/dist/routes/biometricRoutes.js'));
+    } catch (e) {
+      console.error('❌ Failed to load biometricRoutes:', e.message);
+      throw new Error(`Failed to load biometricRoutes: ${e.message}`);
+    }
+    
+    try {
+      console.log('  Loading accessLogRoutes...');
+      ({ default: accessLogRoutes } = await import('../backend/dist/routes/accessLogRoutes.js'));
+    } catch (e) {
+      console.error('❌ Failed to load accessLogRoutes:', e.message);
+      throw new Error(`Failed to load accessLogRoutes: ${e.message}`);
+    }
+    
+    try {
+      console.log('  Loading settingsRoutes...');
+      ({ default: settingsRoutes } = await import('../backend/dist/routes/settingsRoutes.js'));
+    } catch (e) {
+      console.error('❌ Failed to load settingsRoutes:', e.message);
+      throw new Error(`Failed to load settingsRoutes: ${e.message}`);
+    }
+    
+    try {
+      console.log('  Loading directESSLRoutes...');
+      ({ default: directESSLRoutes } = await import('../backend/dist/routes/directESSLRoutes.js'));
+    } catch (e) {
+      console.error('❌ Failed to load directESSLRoutes:', e.message);
+      throw new Error(`Failed to load directESSLRoutes: ${e.message}`);
+    }
+    
+    try {
+      console.log('  Loading tracklieRoutes...');
+      ({ default: tracklieRoutes } = await import('../backend/dist/routes/tracklieRoutes.js'));
+    } catch (e) {
+      console.error('❌ Failed to load tracklieRoutes:', e.message);
+      throw new Error(`Failed to load tracklieRoutes: ${e.message}`);
+    }
+    
+    try {
+      console.log('  Loading etimetrackRoutes...');
+      ({ default: etimetrackRoutes } = await import('../backend/dist/routes/etimetrackRoutes.js'));
+    } catch (e) {
+      console.error('❌ Failed to load etimetrackRoutes:', e.message);
+      throw new Error(`Failed to load etimetrackRoutes: ${e.message}`);
+    }
+    
+    try {
+      console.log('  Loading esslTrackLiteApiRoutes...');
+      ({ default: esslTrackLiteApiRoutes } = await import('../backend/dist/routes/esslTrackLiteApiRoutes.js'));
+    } catch (e) {
+      console.error('❌ Failed to load esslTrackLiteApiRoutes:', e.message);
+      throw new Error(`Failed to load esslTrackLiteApiRoutes: ${e.message}`);
+    }
+    
+    try {
+      console.log('  Loading dashboardRoutes...');
+      ({ default: dashboardRoutes } = await import('../backend/dist/routes/dashboardRoutes.js'));
+    } catch (e) {
+      console.error('❌ Failed to load dashboardRoutes:', e.message);
+      throw new Error(`Failed to load dashboardRoutes: ${e.message}`);
+    }
+    
+    try {
+      console.log('  Loading billingRoutes...');
+      ({ default: billingRoutes } = await import('../backend/dist/routes/billingRoutes.js'));
+    } catch (e) {
+      console.error('❌ Failed to load billingRoutes:', e.message);
+      throw new Error(`Failed to load billingRoutes: ${e.message}`);
+    }
+    
+    try {
+      console.log('  Loading errorHandler...');
+      ({ errorHandler } = await import('../backend/dist/middleware/errorHandler.js'));
+    } catch (e) {
+      console.error('❌ Failed to load errorHandler:', e.message);
+      throw new Error(`Failed to load errorHandler: ${e.message}`);
+    }
+    
+    try {
+      console.log('  Loading directESSLController...');
+      ({ handleIClockCData, handleIClockGetRequest } = await import('../backend/dist/controllers/directESSLController.js'));
+    } catch (e) {
+      console.error('❌ Failed to load directESSLController:', e.message);
+      throw new Error(`Failed to load directESSLController: ${e.message}`);
+    }
+    
+    console.log('✅ All routes loaded successfully');
 
     app.use('/api/clients', clientRoutes);
     app.use('/api/packages', packageRoutes);
@@ -133,6 +220,8 @@ const loadRoutes = async () => {
     app.use('/api/tracklie', tracklieRoutes);
     app.use('/api/etimetrack', etimetrackRoutes);
     app.use('/api/essl-tracklite', esslTrackLiteApiRoutes);
+    app.use('/api/dashboard', dashboardRoutes);
+    app.use('/api/billing', billingRoutes);
 
     app.get('/iclock/cdata.aspx', handleIClockCData);
     app.post('/iclock/cdata.aspx', handleIClockCData);
@@ -146,6 +235,12 @@ const loadRoutes = async () => {
   } catch (error) {
     routeLoadError = error;
     console.error('Error loading routes:', error);
+    console.error('Error stack:', error.stack);
+    console.error('Error details:', {
+      message: error.message,
+      name: error.name,
+      code: error.code,
+    });
     throw error;
   }
 };
@@ -163,10 +258,22 @@ app.use(async (req, res, next) => {
     next();
   } catch (error) {
     console.error('Route loading error:', error);
+    console.error('Route loading error stack:', error.stack);
+    console.error('Route loading error details:', {
+      message: error.message,
+      name: error.name,
+      code: error.code,
+      path: req.path,
+    });
     res.status(500).json({
       success: false,
       message: 'Routes failed to load',
-      error: process.env.NODE_ENV !== 'production' ? error.message : undefined,
+      error: error.message,
+      stack: process.env.NODE_ENV !== 'production' ? error.stack : undefined,
+      details: process.env.NODE_ENV !== 'production' ? {
+        name: error.name,
+        code: error.code,
+      } : undefined,
     });
   }
 });

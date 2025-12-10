@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/components/ui/use-toast";
-import { clientAPI } from "@/lib/api";
+import { clientAPI, packageAPI } from "@/lib/api";
 
 const AddClient = () => {
   const navigate = useNavigate();
@@ -21,15 +21,19 @@ const AddClient = () => {
     gender: "",
     bloodGroup: "",
     months: "",
-    trainer: "",
     package: "",
     totalAmount: "",
     amount: "",
     pendingAmount: "",
     remainingDate: "",
-    timings: "",
+    fromTime: "",
+    fromAmPm: "AM",
+    toTime: "",
+    toAmPm: "PM",
     paymentMode: ""
   });
+  const [packages, setPackages] = useState<any[]>([]);
+  const [loadingPackages, setLoadingPackages] = useState(true);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -37,17 +41,28 @@ const AddClient = () => {
 
   const [submitting, setSubmitting] = useState(false);
 
+  // Fetch packages on component mount
+  useEffect(() => {
+    const fetchPackages = async () => {
+      try {
+        setLoadingPackages(true);
+        const response = await packageAPI.getAll();
+        if (response.data.success) {
+          setPackages(response.data.data || []);
+        }
+      } catch (error) {
+        console.error("Error fetching packages:", error);
+        setPackages([]);
+      } finally {
+        setLoadingPackages(false);
+      }
+    };
+    fetchPackages();
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Basic validation
-    if (!formData.firstName || !formData.contact) {
-      toast({
-        title: "Validation Error",
-        description: "Please fill in all required fields (First Name, Contact)",
-        variant: "destructive"
-      });
-      return;
-    }
+    // All fields are optional - no validation required
 
     setSubmitting(true);
     try {
@@ -56,9 +71,9 @@ const AddClient = () => {
       // 2. Create gym client in GymClients table (additional info - optional)
       // 3. Register user on ESSL device
       const response = await clientAPI.create({
-        firstName: formData.firstName,
+        firstName: formData.firstName || "",
         lastName: formData.lastName || "",
-        phone: formData.contact,
+        phone: formData.contact || undefined,
         email: formData.email || undefined,
         address: formData.address || undefined,
         gender: formData.gender || undefined,
@@ -76,9 +91,10 @@ const AddClient = () => {
         amountPaid: formData.amount ? parseFloat(formData.amount) : undefined,
         // Additional fields for GymClients table - only send if provided
         bloodGroup: formData.bloodGroup || undefined,
-        trainer: formData.trainer || undefined,
         months: formData.months ? parseInt(formData.months) : undefined,
-        timings: formData.timings || undefined,
+        timings: formData.fromTime && formData.toTime 
+          ? `${formData.fromTime} ${formData.fromAmPm} - ${formData.toTime} ${formData.toAmPm}`
+          : undefined,
         paymentMode: formData.paymentMode || undefined,
       });
 
@@ -86,9 +102,10 @@ const AddClient = () => {
         ? "✅ Registered on device" 
         : `⚠️ Device: ${response.data.deviceMessage || 'Not registered'}`;
 
+      const clientName = `${formData.firstName || ''} ${formData.lastName || ''}`.trim() || 'Client';
       toast({
         title: "Client Added Successfully",
-        description: `${formData.firstName} ${formData.lastName} has been added. ${deviceStatus}. User ID: ${response.data.employeeCodeInDevice}`,
+        description: `${clientName} has been added. ${deviceStatus}. User ID: ${response.data.employeeCodeInDevice}`,
       });
 
       // Navigate back to clients list
@@ -120,13 +137,12 @@ const AddClient = () => {
           {/* Personal Information Row */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
             <div>
-              <Label htmlFor="firstName" className="text-sm font-medium mb-2 block">First Name *</Label>
+              <Label htmlFor="firstName" className="text-sm font-medium mb-2 block">First Name</Label>
               <Input
                 id="firstName"
                 placeholder="Enter first name"
                 value={formData.firstName}
                 onChange={(e) => handleInputChange("firstName", e.target.value)}
-                required
               />
             </div>
             <div>
@@ -139,13 +155,12 @@ const AddClient = () => {
               />
             </div>
             <div>
-              <Label htmlFor="contact" className="text-sm font-medium mb-2 block">Contact *</Label>
+              <Label htmlFor="contact" className="text-sm font-medium mb-2 block">Contact</Label>
               <Input
                 id="contact"
                 placeholder="Enter contact number"
                 value={formData.contact}
                 onChange={(e) => handleInputChange("contact", e.target.value)}
-                required
               />
             </div>
             <div>
@@ -206,46 +221,51 @@ const AddClient = () => {
           </div>
 
           {/* Package and Training Details Row */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
             <div>
-              <Label htmlFor="months" className="text-sm font-medium mb-2 block">Months</Label>
-              <Select value={formData.months} onValueChange={(value) => handleInputChange("months", value)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select months" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="1">1 Month</SelectItem>
-                  <SelectItem value="3">3 Months</SelectItem>
-                  <SelectItem value="6">6 Months</SelectItem>
-                  <SelectItem value="12">12 Months</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="trainer" className="text-sm font-medium mb-2 block">Trainer</Label>
-              <Select value={formData.trainer} onValueChange={(value) => handleInputChange("trainer", value)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select trainer" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="trainer1">John Doe</SelectItem>
-                  <SelectItem value="trainer2">Jane Smith</SelectItem>
-                  <SelectItem value="trainer3">Mike Johnson</SelectItem>
-                </SelectContent>
-              </Select>
+              <Label htmlFor="months" className="text-sm font-medium mb-2 block">Duration (Months)</Label>
+              <Input
+                id="months"
+                type="text"
+                placeholder="Enter duration in months"
+                value={formData.months}
+                onChange={(e) => handleInputChange("months", e.target.value)}
+              />
             </div>
             <div>
               <Label htmlFor="package" className="text-sm font-medium mb-2 block">Package</Label>
-              <Select value={formData.package} onValueChange={(value) => handleInputChange("package", value)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select package" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="basic">Basic</SelectItem>
-                  <SelectItem value="premium">Premium</SelectItem>
-                  <SelectItem value="vip">VIP</SelectItem>
-                </SelectContent>
-              </Select>
+              {loadingPackages ? (
+                <Input
+                  disabled
+                  placeholder="Loading packages..."
+                  className="mt-1"
+                />
+              ) : packages.length === 0 ? (
+                <Input
+                  disabled
+                  placeholder="No packages available. Create packages first."
+                  className="mt-1"
+                />
+              ) : (
+                <Select 
+                  value={formData.package} 
+                  onValueChange={(value) => handleInputChange("package", value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select package" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {packages.map((pkg) => {
+                      const packageValue = pkg.name || pkg.id || pkg._id || `package-${Math.random()}`;
+                      return (
+                        <SelectItem key={pkg.id || pkg._id || packageValue} value={packageValue}>
+                          {pkg.name || 'Unnamed Package'}
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
             <div>
               <Label htmlFor="totalAmount" className="text-sm font-medium mb-2 block">Total Amount</Label>
@@ -260,19 +280,119 @@ const AddClient = () => {
 
           {/* Timing and Payment Row */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-            <div>
-              <Label htmlFor="timings" className="text-sm font-medium mb-2 block">Preferred Timings</Label>
-              <Select value={formData.timings} onValueChange={(value) => handleInputChange("timings", value)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select preferred timing" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="morning">Morning (6:00 AM - 10:00 AM)</SelectItem>
-                  <SelectItem value="afternoon">Afternoon (12:00 PM - 4:00 PM)</SelectItem>
-                  <SelectItem value="evening">Evening (5:00 PM - 9:00 PM)</SelectItem>
-                  <SelectItem value="night">Night (8:00 PM - 11:00 PM)</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium mb-2 block">Preferred Timings</Label>
+              <div className="grid grid-cols-6 gap-2">
+                {/* From Time - Hours */}
+                <div>
+                  <Label htmlFor="fromHour" className="text-xs text-gray-600 mb-1 block">From Hour</Label>
+                  <Input
+                    id="fromHour"
+                    type="number"
+                    min="1"
+                    max="12"
+                    placeholder="6"
+                    value={formData.fromTime ? formData.fromTime.split(':')[0] : ''}
+                    onChange={(e) => {
+                      const hour = e.target.value;
+                      const minute = formData.fromTime ? formData.fromTime.split(':')[1] || '00' : '00';
+                      handleInputChange("fromTime", hour ? `${hour.padStart(2, '0')}:${minute}` : '');
+                    }}
+                    className="text-sm h-9"
+                  />
+                </div>
+                {/* From Time - Minutes */}
+                <div>
+                  <Label htmlFor="fromMinute" className="text-xs text-gray-600 mb-1 block">Min</Label>
+                  <Input
+                    id="fromMinute"
+                    type="number"
+                    min="0"
+                    max="59"
+                    placeholder="00"
+                    value={formData.fromTime ? formData.fromTime.split(':')[1] || '00' : ''}
+                    onChange={(e) => {
+                      const minute = e.target.value.padStart(2, '0');
+                      const hour = formData.fromTime ? formData.fromTime.split(':')[0] || '06' : '06';
+                      handleInputChange("fromTime", `${hour}:${minute}`);
+                    }}
+                    className="text-sm h-9"
+                  />
+                </div>
+                {/* From AM/PM */}
+                <div>
+                  <Label htmlFor="fromAmPm" className="text-xs text-gray-600 mb-1 block">AM/PM</Label>
+                  <Select 
+                    value={formData.fromAmPm} 
+                    onValueChange={(value) => handleInputChange("fromAmPm", value)}
+                  >
+                    <SelectTrigger className="text-sm h-9">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="AM">AM</SelectItem>
+                      <SelectItem value="PM">PM</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {/* To Time - Hours */}
+                <div>
+                  <Label htmlFor="toHour" className="text-xs text-gray-600 mb-1 block">To Hour</Label>
+                  <Input
+                    id="toHour"
+                    type="number"
+                    min="1"
+                    max="12"
+                    placeholder="10"
+                    value={formData.toTime ? formData.toTime.split(':')[0].replace(/^0+/, '') || '10' : ''}
+                    onChange={(e) => {
+                      const hour = e.target.value || '10';
+                      const minute = formData.toTime ? formData.toTime.split(':')[1] || '00' : '00';
+                      handleInputChange("toTime", `${hour.padStart(2, '0')}:${minute}`);
+                    }}
+                    className="text-sm h-9"
+                  />
+                </div>
+                {/* To Time - Minutes */}
+                <div>
+                  <Label htmlFor="toMinute" className="text-xs text-gray-600 mb-1 block">Min</Label>
+                  <Input
+                    id="toMinute"
+                    type="number"
+                    min="0"
+                    max="59"
+                    placeholder="00"
+                    value={formData.toTime ? formData.toTime.split(':')[1] || '00' : ''}
+                    onChange={(e) => {
+                      const minute = e.target.value.padStart(2, '0');
+                      const hour = formData.toTime ? formData.toTime.split(':')[0] || '10' : '10';
+                      handleInputChange("toTime", `${hour}:${minute}`);
+                    }}
+                    className="text-sm h-9"
+                  />
+                </div>
+                {/* To AM/PM */}
+                <div>
+                  <Label htmlFor="toAmPm" className="text-xs text-gray-600 mb-1 block">AM/PM</Label>
+                  <Select 
+                    value={formData.toAmPm} 
+                    onValueChange={(value) => handleInputChange("toAmPm", value)}
+                  >
+                    <SelectTrigger className="text-sm h-9">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="AM">AM</SelectItem>
+                      <SelectItem value="PM">PM</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              {formData.fromTime && formData.toTime && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Selected: {formData.fromTime} {formData.fromAmPm} - {formData.toTime} {formData.toAmPm}
+                </p>
+              )}
             </div>
             <div>
               <Label htmlFor="paymentMode" className="text-sm font-medium mb-2 block">Mode of Payment</Label>

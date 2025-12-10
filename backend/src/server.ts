@@ -21,6 +21,8 @@ import directESSLRoutes from './routes/directESSLRoutes.js';
 import tracklieRoutes from './routes/tracklieRoutes.js';
 import etimetrackRoutes from './routes/etimetrackRoutes.js';
 import esslTrackLiteApiRoutes from './routes/esslTrackLiteApiRoutes.js';
+import dashboardRoutes from './routes/dashboardRoutes.js';
+import billingRoutes from './routes/billingRoutes.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { startSyncScheduler, setSocketIO as setSyncSchedulerSocketIO } from './services/syncScheduler.js';
 import { startAccessControlJob } from './jobs/accessControlJob.js';
@@ -94,6 +96,8 @@ app.use('/api/direct-essl', directESSLRoutes);
 app.use('/api/tracklie', tracklieRoutes);
 app.use('/api/etimetrack', etimetrackRoutes);
 app.use('/api/essl-tracklite', esslTrackLiteApiRoutes);
+app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/billing', billingRoutes);
 
 // iClock protocol endpoints (must be at root level for device compatibility)
 // Device calls these directly: /iclock/cdata.aspx and /iclock/getrequest.aspx

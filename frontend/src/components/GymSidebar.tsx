@@ -16,7 +16,8 @@ const clientSubItems = [
   { icon: Users, title: "All Clients", url: "/clients" },
   { icon: UserCheck, title: "Active Clients", url: "/clients/active" },
   { icon: UserX, title: "Inactive Clients", url: "/clients/inactive" },
-  { icon: UserPlus, title: "Add Client", url: "/clients/add" },
+  // Add Client feature hidden - clients are added via device and fetched via middleware
+  // { icon: UserPlus, title: "Add Client", url: "/clients/add" },
 ];
 
 const GymLogo = () => (

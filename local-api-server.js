@@ -256,10 +256,15 @@ const startServer = async () => {
     console.log(`  POST /api/query`);
     console.log('');
     console.log('Expose this server via HTTP tunnel:');
-    console.log('  - localhost.run: ssh -R 80:localhost:3001 ssh.localhost.run');
-    console.log('  - ngrok: ngrok http 3001');
-    console.log('  - Cloudflare: cloudflared tunnel --url http://localhost:3001');
+    console.log('  - Cloudflare (Recommended): cloudflared tunnel --url http://localhost:3001');
+    console.log('  - Or use: start-production.ps1 (starts both server and tunnel)');
     console.log('');
+    console.log('========================================');
+    console.log('💡 For production, use Cloudflare Tunnel:');
+    console.log('   1. Run: cloudflared tunnel login');
+    console.log('   2. Run: cloudflared tunnel create gym-api-tunnel');
+    console.log('   3. Run: cloudflared tunnel run gym-api-tunnel');
+    console.log('   4. Or use: start-production.ps1');
     console.log('========================================');
   });
 };

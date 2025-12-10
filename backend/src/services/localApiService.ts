@@ -126,6 +126,108 @@ class LocalApiService {
   }
 
   /**
+   * Get dashboard stats
+   */
+  async getDashboardStats(): Promise<any> {
+    if (!this.isApiEnabled()) {
+      throw new Error('Local API is not enabled');
+    }
+
+    try {
+      const response = await this.apiClient!.get('/api/dashboard/stats');
+      return response.data.success ? response.data.data : null;
+    } catch (error: any) {
+      console.error('Local API getDashboardStats error:', error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Get billing clients
+   */
+  async getBillingClients(): Promise<any[]> {
+    if (!this.isApiEnabled()) {
+      throw new Error('Local API is not enabled');
+    }
+
+    try {
+      const response = await this.apiClient!.get('/api/billing/clients');
+      return response.data.success ? response.data.data : [];
+    } catch (error: any) {
+      console.error('Local API getBillingClients error:', error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Get pending and overdue clients
+   */
+  async getPendingAndOverdueClients(): Promise<any> {
+    if (!this.isApiEnabled()) {
+      throw new Error('Local API is not enabled');
+    }
+
+    try {
+      const response = await this.apiClient!.get('/api/billing/pending-overdue');
+      return response.data.success ? response.data.data : { pending: [], overdue: [] };
+    } catch (error: any) {
+      console.error('Local API getPendingAndOverdueClients error:', error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Get payment history
+   */
+  async getPaymentHistory(): Promise<any[]> {
+    if (!this.isApiEnabled()) {
+      throw new Error('Local API is not enabled');
+    }
+
+    try {
+      const response = await this.apiClient!.get('/api/billing/payments');
+      return response.data.success ? response.data.data : [];
+    } catch (error: any) {
+      console.error('Local API getPaymentHistory error:', error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Get upcoming payments
+   */
+  async getUpcomingPayments(): Promise<any[]> {
+    if (!this.isApiEnabled()) {
+      throw new Error('Local API is not enabled');
+    }
+
+    try {
+      const response = await this.apiClient!.get('/api/billing/upcoming');
+      return response.data.success ? response.data.data : [];
+    } catch (error: any) {
+      console.error('Local API getUpcomingPayments error:', error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Get billing summary
+   */
+  async getBillingSummary(): Promise<any> {
+    if (!this.isApiEnabled()) {
+      throw new Error('Local API is not enabled');
+    }
+
+    try {
+      const response = await this.apiClient!.get('/api/billing/summary');
+      return response.data.success ? response.data.data : null;
+    } catch (error: any) {
+      console.error('Local API getBillingSummary error:', error.message);
+      throw error;
+    }
+  }
+
+  /**
    * Health check
    */
   async healthCheck(): Promise<boolean> {
@@ -143,4 +245,5 @@ class LocalApiService {
 }
 
 export default new LocalApiService();
+
 

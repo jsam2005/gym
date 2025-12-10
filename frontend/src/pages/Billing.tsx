@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import React from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { GymTable, Client } from "@/components/GymTable";
@@ -7,31 +7,80 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { CreditCard, Wallet, Smartphone, DollarSign, Users, AlertCircle } from "lucide-react";
-
-// Sample billing data
-const billingClients: Client[] = [
-  { id: 1, name: "John M", contact: "7958894675", status: "active", billingDate: "20 June 2024", duration: "12 month", amount: 15000, balance: 5000, remainingDuration: "10 month" },
-  { id: 2, name: "Swetha R", contact: "5986086089", status: "active", billingDate: "18 June 2024", duration: "6 month", amount: 8000, balance: 2000, remainingDuration: "4 month" },
-  { id: 3, name: "Ram T", contact: "7958894675", status: "inactive", billingDate: "15 May 2024", duration: "3 month", amount: 5000, balance: 1000, remainingDuration: "1 month" },
-];
-
-const paymentHistory = [
-  { id: 1, clientName: "John M", amount: 10000, method: "UPI", date: "20 June 2024", status: "completed" },
-  { id: 2, clientName: "Swetha R", amount: 6000, method: "Card", date: "18 June 2024", status: "completed" },
-  { id: 3, clientName: "Ram T", amount: 4000, method: "Cash", date: "15 May 2024", status: "completed" },
-  { id: 4, clientName: "Arun K", amount: 8000, method: "UPI", date: "10 June 2024", status: "pending" },
-];
-
-const upcomingPayments = [
-  { id: 1, clientName: "John M", amount: 5000, dueDate: "20 July 2024", daysLeft: 5 },
-  { id: 2, clientName: "Swetha R", amount: 2000, dueDate: "18 July 2024", daysLeft: 3 },
-  { id: 3, clientName: "Vikram R", amount: 7500, dueDate: "25 July 2024", daysLeft: 10 },
-];
+import { billingAPI } from "@/lib/api";
 
 const Billing = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [billingClients, setBillingClients] = useState<Client[]>([]);
+  const [paymentHistory, setPaymentHistory] = useState<any[]>([]);
+  const [upcomingPayments, setUpcomingPayments] = useState<any[]>([]);
+  const [pendingOverdue, setPendingOverdue] = useState<{ pending: any[]; overdue: any[] }>({ pending: [], overdue: [] });
+  const [summary, setSummary] = useState({
+    totalBillings: 0,
+    totalAmount: 0,
+    totalPaid: 0,
+    pendingAmount: 0,
+    thisMonthCollections: 0,
+  });
+
+  useEffect(() => {
+    fetchBillingData();
+  }, []);
+
+  // Listen for client update events to refresh billing data
+  useEffect(() => {
+    const handleClientUpdate = () => {
+      fetchBillingData();
+    };
+    
+    window.addEventListener('clientUpdated', handleClientUpdate);
+    return () => window.removeEventListener('clientUpdated', handleClientUpdate);
+  }, []);
+
+  const fetchBillingData = async () => {
+    try {
+      setLoading(true);
+      const [clientsRes, paymentsRes, upcomingRes, pendingRes, summaryRes] = await Promise.all([
+        billingAPI.getClients(),
+        billingAPI.getPaymentHistory(),
+        billingAPI.getUpcomingPayments(),
+        billingAPI.getPendingOverdue(),
+        billingAPI.getSummary(),
+      ]);
+
+      if (clientsRes.data.success) {
+        setBillingClients(clientsRes.data.data || []);
+      }
+      if (paymentsRes.data.success) {
+        setPaymentHistory(paymentsRes.data.data || []);
+      }
+      if (upcomingRes.data.success) {
+        setUpcomingPayments(upcomingRes.data.data || []);
+      }
+      if (pendingRes.data.success) {
+        setPendingOverdue({
+          pending: pendingRes.data.data.pending || [],
+          overdue: pendingRes.data.data.overdue || [],
+        });
+      }
+      if (summaryRes.data.success) {
+        setSummary(summaryRes.data.data || { 
+          totalBillings: 0, 
+          totalAmount: 0,
+          totalPaid: 0,
+          pendingAmount: 0, 
+          thisMonthCollections: 0 
+        });
+      }
+    } catch (error: any) {
+      console.error("Error fetching billing data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filteredClients = billingClients.filter(client =>
     client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -67,41 +116,152 @@ const Billing = () => {
       />
       
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <KPICard
-          title="Total Billings"
-          value="₹28,000"
+          title="Total Clients"
+          value={summary.totalBillings?.toLocaleString() || '0'}
+          icon={<Users className="h-6 w-6" />}
+        />
+        <KPICard
+          title="Total Amount"
+          value={`₹${(summary.totalAmount || 0).toLocaleString()}`}
           icon={<DollarSign className="h-6 w-6" />}
         />
         <KPICard
           title="Pending Amount"
-          value="₹8,000"
+          value={`₹${(summary.pendingAmount || 0).toLocaleString()}`}
           icon={<AlertCircle className="h-6 w-6" />}
         />
         <KPICard
           title="This Month Collections"
-          value="₹20,000"
-          icon={<Users className="h-6 w-6" />}
+          value={`₹${(summary.thisMonthCollections || 0).toLocaleString()}`}
+          icon={<CreditCard className="h-6 w-6" />}
         />
       </div>
 
       {/* Billing Tabs */}
       <Tabs defaultValue="clients" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="clients">Client Billing</TabsTrigger>
+          <TabsTrigger value="pending">Pending ({pendingOverdue.pending.length})</TabsTrigger>
+          <TabsTrigger value="overdue">Overdue ({pendingOverdue.overdue.length})</TabsTrigger>
           <TabsTrigger value="payments">Payment History</TabsTrigger>
           <TabsTrigger value="upcoming">Upcoming Payments</TabsTrigger>
         </TabsList>
 
         <TabsContent value="clients">
-          <GymTable 
-            clients={filteredClients}
-            showAmount={true}
-            showBalance={true}
-            showRemainingDuration={true}
-            onView={handleView}
-            onDelete={handleDelete}
-          />
+          {loading ? (
+            <div className="gym-card p-8 text-center text-gray-500">Loading billing data...</div>
+          ) : (
+            <GymTable 
+              clients={filteredClients}
+              showAmount={true}
+              showBalance={true}
+              showRemainingDuration={true}
+              onView={handleView}
+              onDelete={handleDelete}
+            />
+          )}
+        </TabsContent>
+
+        <TabsContent value="pending">
+          <div className="gym-card overflow-hidden">
+            <div className="p-6 border-b bg-white shadow-sm">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-3xl font-extrabold text-gray-900">Pending Payments</h3>
+                <Badge variant="secondary" className="bg-orange-500 text-white px-4 py-2 text-base font-bold">
+                  {pendingOverdue.pending.length} {pendingOverdue.pending.length === 1 ? 'Client' : 'Clients'}
+                </Badge>
+              </div>
+              <p className="text-lg font-semibold text-gray-700 mt-3">Clients with pending amounts and future due dates</p>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b bg-gray-100">
+                    <th className="text-left p-4 font-semibold text-gray-700">Client Name</th>
+                    <th className="text-left p-4 font-semibold text-gray-700">Contact</th>
+                    <th className="text-left p-4 font-semibold text-gray-700">Pending Amount</th>
+                    <th className="text-left p-4 font-semibold text-gray-700">Due Date</th>
+                    <th className="text-left p-4 font-semibold text-gray-700">Days Remaining</th>
+                    <th className="text-left p-4 font-semibold text-gray-700">Package</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pendingOverdue.pending.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="p-8 text-center text-gray-500">No pending payments</td>
+                    </tr>
+                  ) : (
+                    pendingOverdue.pending.map((client) => (
+                      <tr key={client.id} className="border-b hover:bg-gray-50">
+                        <td className="p-4 font-medium">{client.name}</td>
+                        <td className="p-4">{client.contact}</td>
+                        <td className="p-4">₹{client.pendingAmount.toLocaleString()}</td>
+                        <td className="p-4">{client.remainingDate ? new Date(client.remainingDate).toLocaleDateString() : 'N/A'}</td>
+                        <td className="p-4">
+                          <Badge variant={client.daysRemaining && client.daysRemaining <= 7 ? 'destructive' : 'default'}>
+                            {client.daysRemaining !== null ? `${client.daysRemaining} days` : 'N/A'}
+                          </Badge>
+                        </td>
+                        <td className="p-4">{client.packageType}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="overdue">
+          <div className="gym-card overflow-hidden">
+            <div className="p-6 border-b bg-white shadow-sm">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-3xl font-extrabold text-gray-900">Overdue Payments</h3>
+                <Badge variant="destructive" className="bg-red-600 text-white px-4 py-2 text-base font-bold">
+                  {pendingOverdue.overdue.length} {pendingOverdue.overdue.length === 1 ? 'Client' : 'Clients'}
+                </Badge>
+              </div>
+              <p className="text-lg font-semibold text-gray-700 mt-3">Clients with pending amounts past their due date</p>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b bg-gray-100">
+                    <th className="text-left p-4 font-semibold text-gray-700">Client Name</th>
+                    <th className="text-left p-4 font-semibold text-gray-700">Contact</th>
+                    <th className="text-left p-4 font-semibold text-gray-700">Overdue Amount</th>
+                    <th className="text-left p-4 font-semibold text-gray-700">Due Date</th>
+                    <th className="text-left p-4 font-semibold text-gray-700">Days Overdue</th>
+                    <th className="text-left p-4 font-semibold text-gray-700">Package</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pendingOverdue.overdue.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="p-8 text-center text-gray-500">No overdue payments</td>
+                    </tr>
+                  ) : (
+                    pendingOverdue.overdue.map((client) => (
+                      <tr key={client.id} className="border-b hover:bg-red-50">
+                        <td className="p-4 font-medium">{client.name}</td>
+                        <td className="p-4">{client.contact}</td>
+                        <td className="p-4 font-semibold text-red-600">₹{client.pendingAmount.toLocaleString()}</td>
+                        <td className="p-4">{client.remainingDate ? new Date(client.remainingDate).toLocaleDateString() : 'N/A'}</td>
+                        <td className="p-4">
+                          <Badge variant="destructive" className="bg-red-600">
+                            {client.daysRemaining !== null ? `${Math.abs(client.daysRemaining)} days overdue` : 'N/A'}
+                          </Badge>
+                        </td>
+                        <td className="p-4">{client.packageType}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </TabsContent>
 
         <TabsContent value="payments">
@@ -118,7 +278,16 @@ const Billing = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {paymentHistory.map((payment) => (
+                  {loading ? (
+                    <tr>
+                      <td colSpan={5} className="p-8 text-center text-gray-500">Loading payment history...</td>
+                    </tr>
+                  ) : paymentHistory.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="p-8 text-center text-gray-500">No payment history found</td>
+                    </tr>
+                  ) : (
+                    paymentHistory.map((payment) => (
                     <tr key={payment.id} className="border-b hover:bg-gray-50">
                       <td className="p-4 font-medium">{payment.clientName}</td>
                       <td className="p-4">₹{payment.amount.toLocaleString()}</td>
@@ -138,7 +307,8 @@ const Billing = () => {
                         </Badge>
                       </td>
                     </tr>
-                  ))}
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
@@ -159,7 +329,16 @@ const Billing = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {upcomingPayments.map((payment) => (
+                  {loading ? (
+                    <tr>
+                      <td colSpan={5} className="p-8 text-center text-gray-500">Loading upcoming payments...</td>
+                    </tr>
+                  ) : upcomingPayments.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="p-8 text-center text-gray-500">No upcoming payments</td>
+                    </tr>
+                  ) : (
+                    upcomingPayments.map((payment) => (
                     <tr key={payment.id} className="border-b hover:bg-gray-50">
                       <td className="p-4 font-medium">{payment.clientName}</td>
                       <td className="p-4">₹{payment.amount.toLocaleString()}</td>
@@ -180,7 +359,8 @@ const Billing = () => {
                         </Badge>
                       </td>
                     </tr>
-                  ))}
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>

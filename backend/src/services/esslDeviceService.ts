@@ -82,6 +82,10 @@ class ESSLDeviceService {
     } catch (error: any) {
       console.error('❌ ESSL Device connection failed:', error.message);
       this.isDeviceConnected = false;
+      // Don't log connection errors as errors in development - they're expected if device is offline
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`ℹ️  Device at ${this.deviceIp}:${this.devicePort} is not reachable (this is OK if device is offline)`);
+      }
       return false;
     }
   }

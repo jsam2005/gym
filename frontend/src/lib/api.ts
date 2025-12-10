@@ -117,3 +117,15 @@ export const settingsAPI = {
   updateGymInfo: (data: any) => api.put('/settings/gym', data),
 };
 
+export const dashboardAPI = {
+  getStats: () => api.get('/dashboard/stats'),
+};
+
+export const billingAPI = {
+  getClients: () => api.get('/billing/clients'),
+  getPendingOverdue: () => api.get('/billing/pending-overdue'),
+  getPaymentHistory: () => api.get('/billing/payments'),
+  getUpcomingPayments: () => api.get('/billing/upcoming'),
+  getSummary: () => api.get('/billing/summary'),
+};
+
