@@ -27,7 +27,7 @@ import { errorHandler } from './middleware/errorHandler.js';
 import { startSyncScheduler, setSocketIO as setSyncSchedulerSocketIO } from './services/syncScheduler.js';
 import { startAccessControlJob } from './jobs/accessControlJob.js';
 import { setSocketIO } from './controllers/biometricController.js';
-import { handleIClockCData, handleIClockGetRequest } from './controllers/directESSLController.js';
+import { setSocketIO as setDirectESSLSocketIO, handleIClockCData, handleIClockGetRequest } from './controllers/directESSLController.js';
 import etimetrackSyncService from './services/etimetrackSyncService.js';
 
 dotenv.config();
@@ -83,6 +83,8 @@ app.set('io', io);
 
 // Pass Socket.IO to biometric controller for real-time updates
 setSocketIO(io);
+// Pass Socket.IO to direct ESSL controller for real-time updates
+setDirectESSLSocketIO(io);
 // Pass Socket.IO to sync scheduler for emitting new log events
 setSyncSchedulerSocketIO(io);
 

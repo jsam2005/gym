@@ -201,12 +201,22 @@ const loadRoutes = async () => {
       throw new Error(`Failed to load errorHandler: ${e.message}`);
     }
     
+    // Load iClock handlers separately (optional - routes are already in directESSLRoutes)
+    let handleIClockCData, handleIClockGetRequest;
     try {
-      console.log('  Loading directESSLController...');
-      ({ handleIClockCData, handleIClockGetRequest } = await import('../backend/dist/controllers/directESSLController.js'));
+      console.log('  Loading directESSLController (for iClock routes)...');
+      const directESSLController = await import('../backend/dist/controllers/directESSLController.js');
+      handleIClockCData = directESSLController.handleIClockCData;
+      handleIClockGetRequest = directESSLController.handleIClockGetRequest;
     } catch (e) {
-      console.error('❌ Failed to load directESSLController:', e.message);
-      throw new Error(`Failed to load directESSLController: ${e.message}`);
+      console.warn('⚠️ Could not load directESSLController (iClock routes may not work):', e.message);
+      // Create stub handlers if import fails
+      handleIClockCData = (req: any, res: any) => {
+        res.status(503).json({ error: 'iClock handler not available' });
+      };
+      handleIClockGetRequest = (req: any, res: any) => {
+        res.status(503).json({ error: 'iClock handler not available' });
+      };
     }
     
     console.log('✅ All routes loaded successfully');

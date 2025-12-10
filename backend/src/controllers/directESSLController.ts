@@ -1,11 +1,19 @@
 import { Request, Response } from 'express';
-import { io } from '../server.js';
 import {
   getClientByEsslId,
   incrementAccessAttempt,
   updateClientByEsslId,
 } from '../data/clientRepository.js';
 import esslDeviceService from '../services/esslDeviceService.js';
+
+// Socket.IO instance - set to null in serverless mode to avoid circular dependency
+// Will be set by server.ts in non-serverless mode
+let io: any = null;
+
+// Function to set io from server (called by server.ts)
+export const setSocketIO = (socketIO: any) => {
+  io = socketIO;
+};
 
 /**
  * Direct ESSL Communication Controller
