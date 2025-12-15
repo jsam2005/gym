@@ -26,7 +26,7 @@ const salesData = [
 
 const FinancialOverview = () => {
   return (
-    <div className="p-8">
+    <div className="p-0">
       <PageHeader 
         title="Financial Overview" 
         showSearch={false}

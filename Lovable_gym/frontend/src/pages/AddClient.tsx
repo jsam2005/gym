@@ -123,7 +123,8 @@ const AddClient = () => {
   };
 
   return (
-    <div className="min-h-screen bg-transparent p-8">
+    <div className="w-full min-h-screen bg-transparent p-4 flex justify-center">
+      <div className="w-full max-w-7xl">
       <PageHeader 
         title="Add New Client" 
         actionButton={{
@@ -132,7 +133,7 @@ const AddClient = () => {
         }}
       />
       
-      <div className="max-w-6xl mx-auto">
+      <div className="w-full">
         <form onSubmit={handleSubmit} className="gym-card p-8 bg-white shadow-lg">
           {/* Personal Information Row */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
@@ -460,6 +461,7 @@ const AddClient = () => {
             </Button>
           </div>
         </form>
+      </div>
       </div>
     </div>
   );

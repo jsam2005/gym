@@ -66,17 +66,22 @@ export function GymSidebar() {
 
   return (
     <div 
-      className="w-64 h-screen border-r border-gray-300 flex flex-col shadow-2xl shadow-gray-900/20 relative overflow-hidden" 
+      className="w-64 h-screen flex flex-col shadow-2xl shadow-gray-900/20 relative overflow-hidden fixed left-0 top-0 z-50" 
       style={{
         background: 'linear-gradient(180deg, #1f2937 0%, #111827 100%)',
         color: 'white',
-        padding: '0 8px 8px 8px'
+        padding: '0 8px 8px 8px',
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        height: '100vh',
+        overflowY: 'auto'
       }}
     >
-      <div className="absolute inset-0 bg-gradient-to-b from-cyan-500/10 to-blue-600/10"></div>
+      <div className="absolute inset-0 bg-gradient-to-b from-cyan-500/10 to-blue-600/10 pointer-events-none"></div>
       <GymLogo />
       
-      <nav className="flex-1 px-6 py-8 overflow-y-auto relative z-10">
+      <nav className="flex-1 px-6 py-8 overflow-y-auto relative z-10" style={{ maxHeight: 'calc(100vh - 200px)' }}>
         <ul className="space-y-4">
           {menuItems.map((item) => (
             <li key={item.label}>

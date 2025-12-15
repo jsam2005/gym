@@ -3,7 +3,7 @@ import { io, Socket } from 'socket.io-client';
 // WebSocket configuration - Railway supports persistent connections
 const isProduction = import.meta.env.MODE === 'production' || import.meta.env.PROD;
 // In production, use same origin (Railway serves both frontend and backend)
-const WS_URL = import.meta.env.VITE_WS_URL || (isProduction ? '' : 'http://localhost:5000');
+const WS_URL = import.meta.env.VITE_WS_URL || (isProduction ? '' : 'http://localhost:5001');
 
 let socket: Socket | null = null;
 

@@ -1,4 +1,4 @@
-import { Eye, Trash2, Edit } from "lucide-react";
+import { Eye, Trash2, Edit, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/status-badge";
 import {
@@ -11,15 +11,20 @@ import {
 } from "@/components/ui/table";
 
 export interface Client {
-  id: string | number; // Can be string (from API) or number
-  deviceId?: string | number; // Device ID (EmployeeCodeInDevice)
+  id: string | number; // Can be string (from API) or number (EmployeeId)
+  deviceId?: string | number; // Device ID (EmployeeCodeInDevice) - User ID for display
+  esslUserId?: string | number; // Alias for deviceId
   name: string;
   contact: string;
-  status: "active" | "inactive";
+  status: "active" | "inactive" | "suspended";
   billingDate: string;
   duration: string;
-  amount?: number;
-  balance?: number;
+  amount?: number; // Total amount / package amount
+  totalAmount?: number; // Alias for amount
+  packageAmount?: number; // Alias for amount
+  balance?: number; // Pending amount (alias)
+  pendingAmount?: number; // Pending amount
+  amountPaid?: number; // Amount paid
   remainingDuration?: string;
 }
 
@@ -31,6 +36,7 @@ interface GymTableProps {
   onView?: (client: Client) => void;
   onDelete?: (client: Client) => void;
   onEdit?: (client: Client) => void;
+  onDownload?: (client: Client) => void;
   deleting?: string | null;
 }
 
@@ -42,6 +48,7 @@ export function GymTable({
   onView,
   onDelete,
   onEdit,
+  onDownload,
   deleting
 }: GymTableProps) {
   return (
@@ -49,16 +56,16 @@ export function GymTable({
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="w-16">ID</TableHead>
+            <TableHead className="w-20">User ID</TableHead>
             <TableHead>Name</TableHead>
             <TableHead>Contact</TableHead>
-            {showAmount && <TableHead>Amount</TableHead>}
-            {showBalance && <TableHead>Balance</TableHead>}
-            <TableHead>Status</TableHead>
+            {showAmount && <TableHead className="text-right">Amount</TableHead>}
+            {showBalance && <TableHead className="text-right">Pending Amount</TableHead>}
+            <TableHead className="text-center">Status</TableHead>
             <TableHead>Billing Date</TableHead>
             <TableHead>Duration</TableHead>
             {showRemainingDuration && <TableHead>Remaining Duration</TableHead>}
-            <TableHead className="w-24">Action</TableHead>
+            <TableHead className="w-24 text-center">Action</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -68,22 +75,30 @@ export function GymTable({
             const uniqueKey = client.id ? `employee-${client.id}-${index}` : `client-${index}`;
             return (
             <TableRow key={uniqueKey}>
-              <TableCell className="font-medium">{client.deviceId || client.id || '-'}</TableCell>
-              <TableCell className="font-medium">{client.name}</TableCell>
-              <TableCell>{client.contact}</TableCell>
+              <TableCell className="font-medium">{client.deviceId || client.esslUserId || client.id || '-'}</TableCell>
+              <TableCell className="font-medium">{client.name || 'N/A'}</TableCell>
+              <TableCell>{client.contact || 'N/A'}</TableCell>
               {showAmount && (
-                <TableCell>₹{client.amount?.toLocaleString()}</TableCell>
+                <TableCell className="text-right font-medium">
+                  ₹{(client.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                </TableCell>
               )}
               {showBalance && (
-                <TableCell>₹{client.balance?.toLocaleString()}</TableCell>
+                <TableCell className="text-right font-medium">
+                  ₹{(client.pendingAmount !== undefined && client.pendingAmount !== null 
+                    ? client.pendingAmount 
+                    : (client.balance !== undefined && client.balance !== null 
+                        ? client.balance 
+                        : 0)).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                </TableCell>
               )}
-              <TableCell>
+              <TableCell className="text-center">
                 <StatusBadge status={client.status} />
               </TableCell>
-              <TableCell>{client.billingDate}</TableCell>
-              <TableCell>{client.duration}</TableCell>
+              <TableCell>{client.billingDate || 'N/A'}</TableCell>
+              <TableCell>{client.duration || 'N/A'}</TableCell>
               {showRemainingDuration && (
-                <TableCell>{client.remainingDuration}</TableCell>
+                <TableCell>{client.remainingDuration || 'N/A'}</TableCell>
               )}
               <TableCell>
                 <div className="flex gap-2">
@@ -107,16 +122,29 @@ export function GymTable({
                       <Edit className="h-4 w-4" />
                     </Button>
                   )}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => onDelete?.(client)}
-                    disabled={deleting === String(client.id)}
-                    className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 disabled:opacity-50"
-                    title="Delete"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  {onDownload && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onDownload(client)}
+                      className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                      title="Download Bill"
+                    >
+                      <Download className="h-4 w-4" />
+                    </Button>
+                  )}
+                  {onDelete && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onDelete(client)}
+                      disabled={deleting === String(client.id)}
+                      className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 disabled:opacity-50"
+                      title="Delete"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
                 </div>
               </TableCell>
             </TableRow>

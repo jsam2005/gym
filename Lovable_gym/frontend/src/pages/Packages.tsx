@@ -179,7 +179,8 @@ const Packages = () => {
   };
 
   return (
-    <div className="p-8">
+    <div className="w-full p-4 flex justify-center">
+      <div className="w-full max-w-7xl">
       <PageHeader 
         title="Package Management" 
         showSearch={false}
@@ -360,7 +361,7 @@ const Packages = () => {
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent 
-          className="max-w-4xl" 
+          className="w-full" 
           style={{
             backgroundColor: '#1F2937',
             borderRadius: '16px',
@@ -564,6 +565,7 @@ const Packages = () => {
           )}
         </DialogContent>
       </Dialog>
+      </div>
     </div>
   );
 };

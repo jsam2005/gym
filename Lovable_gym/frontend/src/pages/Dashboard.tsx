@@ -90,7 +90,7 @@ const Dashboard = () => {
 
   if (loading) {
     return (
-      <div className="p-8 animate-fade-in">
+      <div className="p-0 animate-fade-in">
         <PageHeader title="Dashboard" showSearch={false} />
         <div className="flex items-center justify-center h-64">
           <div className="text-gray-500">Loading dashboard data...</div>
@@ -100,7 +100,8 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="p-8 animate-fade-in">
+    <div className="w-full p-4 animate-fade-in flex justify-center">
+      <div className="w-full max-w-7xl">
       <PageHeader 
         title="Dashboard" 
         showSearch={false}
@@ -204,6 +205,7 @@ const Dashboard = () => {
             </LineChart>
           </ResponsiveContainer>
         </div>
+      </div>
       </div>
     </div>
   );

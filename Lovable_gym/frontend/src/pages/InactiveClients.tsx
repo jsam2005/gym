@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { PageHeader } from "@/components/PageHeader";
 import { GymTable, Client } from "@/components/GymTable";
@@ -14,45 +14,46 @@ const InactiveClients = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   // Fetch inactive clients from API
-  useEffect(() => {
-    const fetchInactiveClients = async () => {
-      try {
-        setLoading(true);
-        const response = await clientAPI.getInactive();
-        if (response.data.success) {
-          // Transform API data to match the expected format
-          const transformedClients = response.data.clients.map((client: any) => ({
-            id: client._id,
-            name: `${client.firstName} ${client.lastName}`,
-            contact: client.phone,
-            status: client.status,
-            billingDate: (client as any).billingDate 
-              ? new Date((client as any).billingDate).toLocaleDateString('en-GB', { 
+  const fetchInactiveClients = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await clientAPI.getInactive();
+      if (response.data.success) {
+        // Transform API data to match the expected format
+        const transformedClients = (Array.isArray(response.data.clients) ? response.data.clients : []).map((client: any) => ({
+          id: client._id,
+          name: `${client.firstName} ${client.lastName}`,
+          contact: client.phone,
+          status: client.status,
+          billingDate: (client as any).billingDate 
+            ? new Date((client as any).billingDate).toLocaleDateString('en-GB', { 
+                day: 'numeric', 
+                month: 'long', 
+                year: 'numeric' 
+              })
+            : client.packageStartDate 
+              ? new Date(client.packageStartDate).toLocaleDateString('en-GB', { 
                   day: 'numeric', 
                   month: 'long', 
                   year: 'numeric' 
                 })
-              : client.packageStartDate 
-                ? new Date(client.packageStartDate).toLocaleDateString('en-GB', { 
-                    day: 'numeric', 
-                    month: 'long', 
-                    year: 'numeric' 
-                  })
-                : 'N/A',
-            duration: client.packageType
-          }));
-          setClients(transformedClients);
-        }
-      } catch (error) {
-        console.error('Error fetching inactive clients:', error);
-        setClients([]);
-      } finally {
-        setLoading(false);
+              : 'N/A',
+          duration: client.packageType
+        }));
+        setClients(transformedClients);
       }
-    };
-
-    fetchInactiveClients();
+    } catch (error) {
+      console.error('Error fetching inactive clients:', error);
+      setClients([]);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  // Fetch inactive clients on mount
+  useEffect(() => {
+    fetchInactiveClients();
+  }, [fetchInactiveClients]);
 
   // Listen for client update events to refresh data
   useEffect(() => {
@@ -62,7 +63,7 @@ const InactiveClients = () => {
     
     window.addEventListener('clientUpdated', handleClientUpdate);
     return () => window.removeEventListener('clientUpdated', handleClientUpdate);
-  }, []);
+  }, [fetchInactiveClients]);
 
   const filteredClients = clients.filter(client =>
     client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -74,14 +75,9 @@ const InactiveClients = () => {
     setIsDialogOpen(true);
   };
 
-  const handleDelete = (client: Client) => {
-    if (confirm(`Are you sure you want to delete ${client.name}?`)) {
-      console.log("Delete client:", client);
-    }
-  };
-
   return (
-    <div className="p-8">
+    <div className="w-full p-4 flex justify-center">
+      <div className="w-full max-w-7xl">
       <PageHeader 
         title="Inactive Clients List" 
         searchPlaceholder="Search inactive clients..."
@@ -101,13 +97,12 @@ const InactiveClients = () => {
         <GymTable 
           clients={filteredClients}
           onView={handleView}
-          onDelete={handleDelete}
         />
       )}
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent 
-          className="max-w-4xl" 
+          className="w-full" 
           style={{
             backgroundColor: '#1F2937',
             borderRadius: '16px',
@@ -298,14 +293,14 @@ const InactiveClients = () => {
                     <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
                       <span style={{color: '#D1D5DB', fontSize: '14px', fontWeight: '500'}}>Status</span>
                       <div style={{
-                        backgroundColor: selectedClient.status === 'active' ? '#10B981' : '#EF4444',
+                        backgroundColor: selectedClient.status === 'active' ? '#10B981' : selectedClient.status === 'suspended' ? '#F59E0B' : '#EF4444',
                         color: 'white',
                         padding: '6px 12px',
                         borderRadius: '6px',
                         fontSize: '14px',
                         fontWeight: '500'
                       }}>
-                        {selectedClient.status === 'active' ? 'Active' : 'Inactive'}
+                        {selectedClient.status === 'active' ? 'Active' : selectedClient.status === 'suspended' ? 'Suspended' : 'Inactive'}
                       </div>
                     </div>
                   </div>
@@ -343,6 +338,7 @@ const InactiveClients = () => {
           )}
         </DialogContent>
       </Dialog>
+      </div>
     </div>
   );
 };

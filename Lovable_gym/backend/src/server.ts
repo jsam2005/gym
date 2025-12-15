@@ -29,6 +29,7 @@ import { startAccessControlJob } from './jobs/accessControlJob.js';
 import { setSocketIO } from './controllers/biometricController.js';
 import { setSocketIO as setDirectESSLSocketIO, handleIClockCData, handleIClockGetRequest } from './controllers/directESSLController.js';
 import etimetrackSyncService from './services/etimetrackSyncService.js';
+import { findAvailablePort } from './utils/portFinder.js';
 
 dotenv.config();
 
@@ -45,10 +46,7 @@ const io = new Server(httpServer, {
       'http://localhost:8085',
       'http://localhost:3000',
       'http://localhost:5173',
-      'http://localhost:5174',
-      // Vercel domains (allow all Vercel preview/production URLs)
-      /^https:\/\/.*\.vercel\.app$/,
-      /^https:\/\/.*\.vercel\.app\/.*$/
+      'http://localhost:5174'
     ],
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     credentials: true,
@@ -74,6 +72,9 @@ const corsOptions = {
     
     const allowedOrigins = [
       process.env.FRONTEND_URL || 'http://localhost:5173',
+      'http://localhost:3000', // Allow the new 'serve' frontend
+      'http://localhost:5001', // Allow requests from the backend serving itself
+      'http://localhost:5002', // Allow requests from the dev server when port 5001 is busy
       'http://localhost:8081',
       'http://localhost:8082',
       'http://localhost:8083',
@@ -82,19 +83,11 @@ const corsOptions = {
       'http://localhost:3000',
       'http://localhost:5173',
       'http://localhost:5174',
-      'https://gym-zeta-teal.vercel.app', // Explicitly allow the Vercel domain
-      // Vercel domains (allow all Vercel preview/production URLs)
-      /^https:\/\/.*\.vercel\.app$/,
     ];
     
     // Check if origin matches any allowed pattern
     const isAllowed = allowedOrigins.some(allowed => {
-      if (typeof allowed === 'string') {
-        return origin === allowed;
-      } else if (allowed instanceof RegExp) {
-        return allowed.test(origin);
-      }
-      return false;
+      return origin === allowed;
     });
     
     if (isAllowed) {
@@ -133,6 +126,23 @@ setDirectESSLSocketIO(io);
 setSyncSchedulerSocketIO(io);
 
 // Routes
+// Root API endpoint
+app.get('/api', (req, res) => {
+  res.json({
+    status: 'OK',
+    message: 'Gym Management API',
+    version: '1.0.0',
+    endpoints: {
+      clients: '/api/clients',
+      packages: '/api/packages',
+      dashboard: '/api/dashboard',
+      biometric: '/api/biometric',
+      billing: '/api/billing',
+      health: '/api/health'
+    }
+  });
+});
+
 app.use('/api/clients', clientRoutes);
 app.use('/api/packages', packageRoutes);
 app.use('/api/biometric', biometricRoutes);
@@ -200,11 +210,18 @@ io.on('connection', (socket) => {
   });
 });
 
-const PORT = process.env.PORT || 5001;
+const PREFERRED_PORT = parseInt(process.env.PORT || '5001', 10);
 
 // Connect to database and start server
 const startServer = async () => {
   try {
+    // Find an available port
+    const PORT = await findAvailablePort(PREFERRED_PORT);
+    
+    if (PORT !== PREFERRED_PORT) {
+      console.log(`⚠️  Port ${PREFERRED_PORT} is in use, using port ${PORT} instead`);
+    }
+    
     // Try to connect to database (optional - won't fail if connection fails)
     await connectDB();
     
@@ -216,6 +233,14 @@ const startServer = async () => {
       console.warn('⚠️  GymClients table setup skipped:', tableError.message);
     }
     
+    // Setup Profile table if it doesn't exist
+    try {
+      const { setupProfileTable } = await import('./scripts/setupProfileTable.js');
+      await setupProfileTable();
+    } catch (tableError: any) {
+      console.warn('⚠️  Profile table setup skipped:', tableError.message);
+    }
+    
     // Initialize eTimeTrack sync service (only if SQL is available)
     try {
       await etimetrackSyncService.initialize();
@@ -223,24 +248,25 @@ const startServer = async () => {
       console.warn('⚠️  eTimeTrack sync service initialization skipped:', syncError.message);
     }
     
-    // Setup frontend static file serving (for production)
+    // Setup frontend static file serving (if frontend is built)
     const fs = await import('fs');
     const frontendPath = path.join(__dirname, '..', '..', 'frontend', 'dist');
     
     try {
       await fs.promises.access(frontendPath);
-      // Frontend dist exists - serve static files
+      
+      // Serve all static files from the frontend build directory
       app.use(express.static(frontendPath, {
         maxAge: '1y',
         etag: true,
         lastModified: true,
       }));
 
-      // Serve index.html for all non-API routes (React Router)
+      // For any request that is not an API call, send the index.html file.
+      // This is the catch-all for client-side routing.
       app.get('*', (req, res, next) => {
-        // Skip API routes and iClock routes
         if (req.path.startsWith('/api') || req.path.startsWith('/iclock')) {
-          return next();
+          return next(); // Skip if it's an API or iClock call
         }
         res.sendFile(path.join(frontendPath, 'index.html'));
       });
@@ -250,11 +276,19 @@ const startServer = async () => {
       console.log('ℹ️  Frontend dist not found - API-only mode');
     }
     
-    httpServer.listen(PORT, () => {
+    httpServer.listen(PORT, async () => {
       console.log(`🚀 Server running on port ${PORT}`);
       console.log(`📊 API: http://localhost:${PORT}/api`);
       console.log(`🌐 Frontend: http://localhost:${PORT}`);
       console.log(`🔌 WebSocket: ws://localhost:${PORT}`);
+      
+      // Save port to file for tunnel script
+      try {
+        const portFile = path.join(__dirname, '..', '..', '..', 'CURRENT_PORT.txt');
+        await fs.promises.writeFile(portFile, PORT.toString(), 'utf-8');
+      } catch (err) {
+        // Ignore errors writing port file
+      }
       
       // Start background jobs (they will handle SQL connection errors gracefully)
       try {

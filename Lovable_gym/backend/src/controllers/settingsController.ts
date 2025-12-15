@@ -1,95 +1,88 @@
 import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import {
-  createGymSettings,
-  createUser,
-  getGymSettings as fetchGymSettings,
-  getUser,
-  updateGymSettings as updateGymSettingsRecord,
-  updateUserNotifications,
-  updateUserPassword,
-  updateUserProfile,
-} from '../data/settingsRepository.js';
+  createProfile,
+  getProfile,
+  updateProfile as updateProfileRecord,
+  updateProfilePassword,
+} from '../data/profileRepository.js';
 
 /**
- * Get user profile settings
+ * Get profile settings
  */
 export const getProfileSettings = async (req: Request, res: Response): Promise<void> => {
   try {
-    let user = await getUser();
+    let profile = await getProfile();
     
-    if (!user) {
+    if (!profile) {
       const defaultPassword = await bcrypt.hash('admin123', 10);
-      user = await createUser({
-        name: 'Vikram R',
-        email: 'vikram@gmail.com',
-        phone: '7958694675',
+      profile = await createProfile({
+        gymName: 'FitStudio',
+        gymAddress: '123 Fitness Street, Gym City',
+        ownerName: 'Vikram R',
+        ownerPhone: '7958694675',
+        additionalContact: null,
+        photo: null,
         passwordHash: defaultPassword,
-        role: 'admin',
-        notifications: {
-          newMemberSignUps: true,
-          classCancellations: false,
-        },
       });
     }
 
-    const { passwordHash, ...profileData } = user;
+    const { passwordHash, ...profileData } = profile;
     res.json({
       success: true,
       data: profileData,
     });
   } catch (error: any) {
+    console.error('❌ Error getting profile:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 };
 
 /**
- * Update user profile information
+ * Update profile information
  */
 export const updateProfile = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { name, email, phone } = req.body;
+    const { gymName, gymAddress, ownerName, ownerPhone, additionalContact, photo } = req.body;
 
-    // Validate input
-    if (!name || !email || !phone) {
+    // Validate required fields
+    if (!gymName || !gymAddress || !ownerName || !ownerPhone) {
       res.status(400).json({
         success: false,
-        error: 'Name, email, and phone are required',
+        error: 'Gym name, address, owner name, and owner phone are required',
       });
       return;
     }
 
-    // Email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      res.status(400).json({
-        success: false,
-        error: 'Invalid email format',
-      });
-      return;
-    }
-
-    // Phone validation (10 digits)
-    const phoneRegex = /^\d{10}$/;
-    if (!phoneRegex.test(phone.replace(/\s/g, ''))) {
-      res.status(400).json({
-        success: false,
-        error: 'Invalid phone number. Must be 10 digits',
-      });
-      return;
-    }
-
-    const user = await getUser();
-    if (!user) {
+    const profile = await getProfile();
+    if (!profile) {
       res.status(404).json({
         success: false,
-        error: 'User not found',
+        error: 'Profile not found',
       });
       return;
     }
 
-    const updated = await updateUserProfile({ name, email, phone });
-    const { passwordHash, ...profileData } = updated ?? {};
+    const updated = await updateProfileRecord({
+      gymName,
+      gymAddress,
+      ownerName,
+      ownerPhone,
+      additionalContact: additionalContact || null,
+      photo: photo || null,
+    });
+    
+    if (!updated) {
+      res.status(500).json({
+        success: false,
+        error: 'Failed to update profile',
+      });
+      return;
+    }
+
+    const { passwordHash, ...profileData } = updated;
+
+    console.log('✅ Profile updated successfully:', { gymName: profileData.gymName, ownerName: profileData.ownerName });
 
     res.json({
       success: true,
@@ -97,6 +90,7 @@ export const updateProfile = async (req: Request, res: Response): Promise<void> 
       data: profileData,
     });
   } catch (error: any) {
+    console.error('❌ Error updating profile:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 };
@@ -117,17 +111,17 @@ export const changePassword = async (req: Request, res: Response): Promise<void>
       return;
     }
 
-    const user = await getUser();
-    if (!user) {
+    const profile = await getProfile();
+    if (!profile) {
       res.status(404).json({
         success: false,
-        error: 'User not found',
+        error: 'Profile not found',
       });
       return;
     }
 
     // Verify current password
-    const isValidPassword = await bcrypt.compare(currentPassword, user.passwordHash);
+    const isValidPassword = await bcrypt.compare(currentPassword, profile.passwordHash);
     if (!isValidPassword) {
       res.status(401).json({
         success: false,
@@ -156,122 +150,40 @@ export const changePassword = async (req: Request, res: Response): Promise<void>
 
     // Hash and save new password
     const passwordHash = await bcrypt.hash(newPassword, 10);
-    await updateUserPassword(passwordHash);
+    await updateProfilePassword(passwordHash);
 
     res.json({
       success: true,
       message: 'Password changed successfully',
     });
   } catch (error: any) {
+    console.error('❌ Error changing password:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 };
 
 /**
- * Update notification settings
+ * Update notification settings (removed - not needed in simplified profile)
  */
 export const updateNotifications = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { newMemberSignUps, classCancellations } = req.body;
-
-    if (typeof newMemberSignUps !== 'boolean' || typeof classCancellations !== 'boolean') {
-      res.status(400).json({
-        success: false,
-        error: 'Invalid notification settings format',
-      });
-      return;
-    }
-
-    const user = await getUser();
-    if (!user) {
-      res.status(404).json({
-        success: false,
-        error: 'User not found',
-      });
-      return;
-    }
-
-    const updated = await updateUserNotifications({
-      newMemberSignUps,
-      classCancellations,
-    });
-
-    res.json({
-      success: true,
-      message: 'Notification settings updated successfully',
-      data: updated?.notifications,
-    });
-  } catch (error: any) {
-    res.status(500).json({ success: false, error: error.message });
-  }
+  res.status(501).json({
+    success: false,
+    error: 'Notifications feature not available in simplified profile',
+  });
 };
 
 /**
- * Get gym settings
+ * Get gym settings (alias for getProfileSettings)
  */
 export const getGymSettings = async (req: Request, res: Response): Promise<void> => {
-  try {
-    let gymSettings = await fetchGymSettings();
-    
-    if (!gymSettings) {
-      gymSettings = await createGymSettings({
-        gymName: 'FitStudio',
-        gymEmail: 'contact@fitstudio.com',
-        gymPhone: '+91 98765 43210',
-        gymAddress: '123 Fitness Street, Gym City',
-      });
-    }
-
-    res.json({
-      success: true,
-      data: gymSettings,
-    });
-  } catch (error: any) {
-    res.status(500).json({ success: false, error: error.message });
-  }
+  await getProfileSettings(req, res);
 };
 
 /**
- * Update gym information
+ * Update gym information (alias for updateProfile)
  */
 export const updateGymInfo = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { gymName, gymEmail, gymPhone, gymAddress } = req.body;
-
-    // Validate input
-    if (!gymName || !gymEmail || !gymPhone || !gymAddress) {
-      res.status(400).json({
-        success: false,
-        error: 'All gym fields are required',
-      });
-      return;
-    }
-
-    // Email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(gymEmail)) {
-      res.status(400).json({
-        success: false,
-        error: 'Invalid gym email format',
-      });
-      return;
-    }
-
-    const updated = await updateGymSettingsRecord({
-        gymName,
-        gymEmail,
-        gymPhone,
-        gymAddress,
-      });
-
-    res.json({
-      success: true,
-      message: 'Gym information updated successfully',
-      data: updated,
-    });
-  } catch (error: any) {
-    res.status(500).json({ success: false, error: error.message });
-  }
+  await updateProfile(req, res);
 };
 
 /**
@@ -308,8 +220,12 @@ export const uploadProfilePhoto = async (req: Request, res: Response): Promise<v
       return;
     }
 
-    // In production, upload to cloud storage (AWS S3, Cloudinary, etc.)
+    // Save photo URL to profile
     const photoUrl = `/uploads/${req.file.filename}`;
+    const profile = await getProfile();
+    if (profile) {
+      await updateProfileRecord({ photo: photoUrl });
+    }
 
     res.json({
       success: true,
@@ -319,7 +235,7 @@ export const uploadProfilePhoto = async (req: Request, res: Response): Promise<v
       },
     });
   } catch (error: any) {
+    console.error('❌ Error uploading photo:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 };
-

@@ -62,9 +62,6 @@ See `VERCEL_FRONTEND_SETUP.md` for complete guide.
 
 - `LOCAL_SETUP.md` - Complete local hosting guide
 - `VERCEL_FRONTEND_SETUP.md` - Vercel frontend + local backend setup
-- `CHECK_GYMCLIENTS_DATA.sql` - SQL queries for checking data
-- `VIEW_GYMCLIENTS_DATA.sql` - SQL queries for viewing data
-- `ADD_BILLING_DATE_COLUMN.sql` - Database migration script
 
 ## 📁 Project Structure
 

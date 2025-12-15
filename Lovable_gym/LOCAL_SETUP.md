@@ -16,12 +16,12 @@ This guide explains how to run your Gym Management System locally and how to app
    ```
    This will:
    - Install all dependencies
-   - Start backend server on `http://localhost:5000`
+   - Start backend server on `http://localhost:5001`
    - Start frontend server on `http://localhost:5173`
 
 3. **Access the Application**
    - Open browser: `http://localhost:5173`
-   - Backend API: `http://localhost:5000/api`
+   - Backend API: `http://localhost:5001/api`
 
 ---
 
@@ -122,12 +122,12 @@ ETIME_SQL_USER=essl
 ETIME_SQL_PASSWORD=essl
 SQL_DISABLED=false
 USE_API_ONLY=false
-PORT=5000
+PORT=5001
 FRONTEND_URL=http://localhost:5173
 ```
 
 ### Frontend Configuration
-Frontend automatically connects to `http://localhost:5000/api` in development mode.
+Frontend automatically connects to `http://localhost:5001/api` in development mode.
 No configuration needed unless you change the backend port.
 
 ---
@@ -135,7 +135,7 @@ No configuration needed unless you change the backend port.
 ## 🛠️ Troubleshooting
 
 ### Port Already in Use
-If ports 5000 or 5173 are already in use:
+If ports 5001 or 5173 are already in use:
 ```powershell
 .\STOP.ps1
 .\START_LOCAL.ps1
@@ -233,6 +233,14 @@ Lovable_gym/
 2. Verify all prerequisites are installed
 3. Ensure SQL Server is running and accessible
 4. Check `backend/.env` configuration
+
+
+
+
+
+
+
+
 
 
 

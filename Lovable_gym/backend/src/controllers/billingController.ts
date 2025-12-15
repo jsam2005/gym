@@ -61,6 +61,7 @@ export const getBillingClients = async (req: Request, res: Response): Promise<vo
           e.EmployeeName,
           e.ContactNo,
           e.Email,
+          e.EmployeeCodeInDevice,
           gc.TotalAmount,
           gc.AmountPaid,
           gc.PendingAmount,
@@ -110,6 +111,8 @@ export const getBillingClients = async (req: Request, res: Response): Promise<vo
 
       return {
         id: row.EmployeeId,
+        deviceId: row.EmployeeCodeInDevice || '', // User ID for display (same as clients page)
+        esslUserId: row.EmployeeCodeInDevice || '', // Alias for deviceId
         name: row.EmployeeName || 'Unknown',
         contact: row.ContactNo || '',
         email: row.Email || '',
@@ -121,8 +124,10 @@ export const getBillingClients = async (req: Request, res: Response): Promise<vo
         }) : 'N/A',
         duration: months > 0 ? `${months} month${months > 1 ? 's' : ''}` : 'N/A',
         amount: totalAmount,
+        totalAmount: totalAmount, // Alias for amount
         amountPaid: amountPaid,
         balance: pendingAmount,
+        pendingAmount: pendingAmount, // Explicit pending amount field
         remainingDuration: monthsRemaining !== null && monthsRemaining > 0
           ? `${monthsRemaining} month${monthsRemaining !== 1 ? 's' : ''}`
           : remainingDate && remainingDate <= now ? 'Expired' : 'N/A',

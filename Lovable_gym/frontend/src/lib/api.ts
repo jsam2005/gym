@@ -1,12 +1,17 @@
 import axios from 'axios';
 
 // API URL configuration
-// In production (Vercel): Use VITE_API_URL env var (set in Vercel dashboard)
-// In development: Use localhost
-const API_URL = import.meta.env.VITE_API_URL || 
-  (import.meta.env.MODE === 'production' || import.meta.env.PROD
-    ? '/api'  // Fallback to same origin if VITE_API_URL not set
-    : 'http://localhost:5001/api');
+// Local development only - connects to localhost backend
+const getBackendUrl = () => {
+  // Use environment variable if set, otherwise default to localhost:5001
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+  // Default to localhost:5001 for local development
+  return `http://localhost:${import.meta.env.VITE_BACKEND_PORT || '5001'}/api`;
+};
+
+const API_URL = getBackendUrl();
 
 const api = axios.create({
   baseURL: API_URL,
@@ -15,6 +20,9 @@ const api = axios.create({
   },
   withCredentials: false,
 });
+
+// Export default api instance
+export default api;
 
 // Request interceptor
 api.interceptors.request.use(
@@ -43,8 +51,6 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
-
-export default api;
 
 // API Methods
 export const clientAPI = {

@@ -29,9 +29,9 @@ const App = () => (
           v7_relativeSplatPath: true
         }}
       >
-        <div className="flex min-h-screen w-full">
+        <div className="flex min-h-screen w-full relative">
           <GymSidebar />
-          <main className="flex-1 overflow-auto bg-transparent text-foreground main-content">
+          <main className="flex-1 overflow-auto bg-transparent text-foreground main-content" style={{ marginLeft: '256px', padding: 0, width: 'calc(100% - 256px)' }}>
             <Routes>
               <Route path="/" element={<Dashboard />} />
               <Route path="/clients" element={<AllClients />} />

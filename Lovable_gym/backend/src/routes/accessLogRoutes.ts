@@ -17,8 +17,20 @@ import {
 
 const router = Router();
 
+// Log all requests to this router
+router.use((req, res, next) => {
+  console.log(`🌐 ${req.method} ${req.path} - Query:`, req.query);
+  next();
+});
+
 // Test connection
 router.get('/test-connection', testConnection);
+
+// Test endpoint to verify route is working
+router.get('/test', (req, res) => {
+  console.log('✅ /api/access-logs/test endpoint hit!');
+  res.json({ success: true, message: 'Route is working!', query: req.query });
+});
 
 // Access logs routes
 router.get('/', getAccessLogs);

@@ -272,6 +272,13 @@ button:focus {
 .main-content {
   background-color: transparent !important;
   color: rgb(226, 232, 240) !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+.main-content > div {
+  padding: 0 !important;
+  margin: 0 !important;
 }
 
 /* Fix content visibility issues */

@@ -21,7 +21,6 @@ const AllClients = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [deleting, setDeleting] = useState<string | null>(null);
-
   // Fetch clients from API - extracted to be reusable
   const fetchClients = async (isRefresh = false) => {
       try {
@@ -31,7 +30,7 @@ const AllClients = () => {
         setLoading(true);
       }
         const response = await clientAPI.getAll();
-        if (response.data.success) {
+        if (response.data && response.data.success && Array.isArray(response.data.clients)) {
           // Transform API data to match the expected format
         // Transform and deduplicate clients
         const transformedClients = response.data.clients
@@ -63,6 +62,9 @@ const AllClients = () => {
             index === self.findIndex((c: any) => c.id === client.id)
           );
           setClients(transformedClients);
+        } else {
+          console.warn('Invalid API response:', response.data);
+          setClients([]);
         }
       } catch (error) {
         console.error('Error fetching clients:', error);
@@ -110,6 +112,10 @@ const AllClients = () => {
     setIsDialogOpen(true);
   };
 
+  const handleEdit = (client: Client) => {
+    navigate(`/clients/edit/${client.id}`);
+  };
+
   const handleDelete = async (client: Client) => {
     if (!confirm(`Are you sure you want to delete ${client.name}? This will delete the client from the database and the ESSL device.`)) {
       return;
@@ -136,10 +142,6 @@ const AllClients = () => {
     }
   };
 
-  const handleEdit = (client: Client) => {
-    navigate(`/clients/edit/${client.id}`);
-  };
-
   // Sync button removed - clients are synced via middleware
 
   // Add Client feature hidden - clients are added via device and fetched via middleware
@@ -152,8 +154,9 @@ const AllClients = () => {
   };
 
   return (
-    <div className="p-8">
-      <div className="flex items-center justify-between mb-8">
+    <div className="w-full p-4 flex justify-center">
+      <div className="w-full max-w-7xl">
+        <div className="flex items-center justify-between mb-8">
         <h1 className="text-3xl font-bold text-foreground">All Clients List</h1>
         
         <div className="flex items-center gap-4">
@@ -194,21 +197,24 @@ const AllClients = () => {
           <GymTable
             clients={filteredClients}
             onView={handleView}
-            onDelete={handleDelete}
             onEdit={handleEdit}
+            onDelete={handleDelete}
             deleting={deleting}
           />
       )}
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent 
-          className="max-w-4xl" 
+          className="w-full max-w-4xl" 
           style={{
             backgroundColor: '#1F2937',
             borderRadius: '16px',
             boxShadow: '0 10px 25px rgba(0, 0, 0, 0.3)',
             border: '1px solid #374151',
-            color: '#F9FAFB'
+            color: '#F9FAFB',
+            maxWidth: '900px',
+            width: 'auto',
+            padding: '0'
           }}
         >
           <DialogHeader>
@@ -223,8 +229,8 @@ const AllClients = () => {
             </DialogTitle>
           </DialogHeader>
           {selectedClient && (
-            <div style={{padding: '30px'}}>
-              <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '40px', marginBottom: '40px'}}>
+            <div style={{padding: '30px', width: '100%', boxSizing: 'border-box'}}>
+              <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '40px', marginBottom: '40px', width: '100%'}}>
                 <div style={{
                   backgroundColor: '#374151',
                   padding: '24px',
@@ -393,14 +399,14 @@ const AllClients = () => {
                     <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
                       <span style={{color: '#D1D5DB', fontSize: '14px', fontWeight: '500'}}>Status</span>
                       <div style={{
-                        backgroundColor: selectedClient.status === 'active' ? '#10B981' : '#EF4444',
+                        backgroundColor: selectedClient.status === 'active' ? '#10B981' : selectedClient.status === 'suspended' ? '#F59E0B' : '#EF4444',
                         color: 'white',
                         padding: '6px 12px',
                         borderRadius: '6px',
                         fontSize: '14px',
                         fontWeight: '500'
                       }}>
-                        {selectedClient.status === 'active' ? 'Active' : 'Inactive'}
+                        {selectedClient.status === 'active' ? 'Active' : selectedClient.status === 'suspended' ? 'Suspended' : 'Inactive'}
                       </div>
                     </div>
                   </div>
@@ -438,6 +444,7 @@ const AllClients = () => {
           )}
         </DialogContent>
       </Dialog>
+      </div>
     </div>
   );
 };

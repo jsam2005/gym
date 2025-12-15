@@ -173,13 +173,190 @@ class TracklieService {
   }
 
   /**
+   * Simple: Get logs by date only (YYYY-MM-DD format)
+   */
+  async getAttendanceLogsByDate(dateStr: string, deviceId: number, limit: number = 500): Promise<any[]> {
+    // Use API if enabled
+    if (this.isApiMode()) {
+      try {
+        const date = new Date(dateStr);
+        const tomorrow = new Date(date);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const logs = await esslTrackLiteApiService.getAttendanceLogs({
+          startDate: date,
+          endDate: tomorrow,
+          limit,
+        });
+        return logs;
+      } catch (error: any) {
+        console.warn('⚠️  Error fetching logs via API:', error.message);
+        return [];
+      }
+    }
+
+    try {
+      const pool = await this.ensurePool();
+      
+      // Find table - check monthly table for the selected date
+      const date = new Date(dateStr);
+      const month = date.getMonth() + 1;
+      const year = date.getFullYear();
+      const monthlyTable = `DeviceLogs_${month}_${year}`;
+      
+      console.log(`🔍 Looking for logs on date: ${dateStr} (month: ${month}, year: ${year})`);
+      console.log(`🔍 Checking for monthly table: ${monthlyTable}`);
+      
+      // Check if monthly table exists
+      let logTable = 'DeviceLogs';
+      try {
+        const checkResult = await pool.request().query(`
+          SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES 
+          WHERE TABLE_NAME = '${monthlyTable}'
+        `);
+        if (checkResult.recordset.length > 0) {
+          logTable = monthlyTable;
+          console.log(`✅ Using monthly table: ${logTable}`);
+        } else {
+          // Try to find any monthly table that might have data
+          console.log(`⚠️  Monthly table ${monthlyTable} not found, checking all DeviceLogs tables...`);
+          const allTablesResult = await pool.request().query(`
+            SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES 
+            WHERE TABLE_NAME LIKE 'DeviceLogs%'
+            ORDER BY TABLE_NAME DESC
+          `);
+          const availableTables = allTablesResult.recordset.map((r: any) => r.TABLE_NAME);
+          console.log(`📋 Available tables: ${availableTables.join(', ')}`);
+          
+          // Use main table if monthly doesn't exist
+          if (availableTables.includes('DeviceLogs')) {
+            logTable = 'DeviceLogs';
+            console.log(`✅ Using main table: ${logTable}`);
+          } else if (availableTables.length > 0) {
+            // Use the most recent monthly table as fallback
+            logTable = availableTables[0];
+            console.log(`⚠️  Using fallback table: ${logTable}`);
+          }
+        }
+      } catch (e) {
+        console.log(`⚠️  Error checking monthly table, using default: ${logTable}`);
+      }
+
+      // Simple query: Get logs for this exact date, this device
+      // Use direct date string comparison to avoid timezone issues
+      // Format: YYYY-MM-DD
+      const query = `
+        SELECT TOP ${limit}
+          dl.DeviceLogId,
+          dl.UserId,
+          dl.DeviceId,
+          dl.LogDate,
+          FORMAT(dl.LogDate, 'yyyy-MM-dd HH:mm:ss') AS LogDateFormatted,
+          e.EmployeeName
+        FROM ${logTable} dl
+        LEFT JOIN Employees e ON dl.UserId = e.EmployeeCodeInDevice
+        WHERE CAST(dl.LogDate AS DATE) = CAST('${dateStr}' AS DATE)
+          AND dl.DeviceId = ${deviceId || 20}
+        ORDER BY dl.LogDate DESC
+      `;
+
+      console.log(`📝 Executing query on table: ${logTable}`);
+      console.log(`📝 Date string: ${dateStr}`);
+      console.log(`📝 Query: Get logs for exact date ${dateStr} for DeviceId ${deviceId}`);
+      
+      // Also check what dates exist in the table
+      const dateCheckQuery = `
+        SELECT DISTINCT CAST(LogDate AS DATE) AS LogDateOnly, COUNT(*) AS Count
+        FROM ${logTable}
+        WHERE DeviceId = ${deviceId}
+        GROUP BY CAST(LogDate AS DATE)
+        ORDER BY LogDateOnly DESC
+      `;
+      try {
+        const dateCheck = await pool.request().query(dateCheckQuery);
+        console.log(`📅 Available dates in ${logTable} for DeviceId ${deviceId}:`, 
+          dateCheck.recordset.map((r: any) => `${r.LogDateOnly.toISOString().split('T')[0]} (${r.Count} logs)`).join(', '));
+      } catch (e) {
+        console.log(`⚠️  Could not check available dates`);
+      }
+      
+      // Execute query directly with date string (no parameters needed for exact date match)
+      const result = await pool.request().query(query);
+      
+      console.log(`✅ Query returned ${result.recordset.length} rows from ${logTable}`);
+      
+      // If no results, log diagnostic information
+      if (result.recordset.length === 0) {
+        console.log(`⚠️  No logs found for date ${dateStr} in table ${logTable} for DeviceId ${deviceId}`);
+        try {
+          // Check what dates are actually available
+          const dateCheckQuery = `
+            SELECT DISTINCT 
+              CAST(LogDate AS DATE) AS LogDateOnly, 
+              COUNT(*) AS Count
+            FROM ${logTable}
+            WHERE DeviceId = ${deviceId || 20}
+            GROUP BY CAST(LogDate AS DATE)
+            ORDER BY LogDateOnly DESC
+          `;
+          const dateCheck = await pool.request().query(dateCheckQuery);
+          if (dateCheck.recordset.length > 0) {
+            console.log(`📅 Available dates in ${logTable} for DeviceId ${deviceId || 20}:`, 
+              dateCheck.recordset.map((r: any) => {
+                const dateStr = r.LogDateOnly.toISOString ? r.LogDateOnly.toISOString().split('T')[0] : String(r.LogDateOnly);
+                return `${dateStr} (${r.Count} logs)`;
+              }).join(', '));
+          } else {
+            console.log(`⚠️  No dates found in ${logTable} for DeviceId ${deviceId || 20}`);
+          }
+        } catch (e) {
+          console.log(`⚠️  Could not check available dates:`, e);
+        }
+      }
+
+      // If no results and we used monthly table, also check main DeviceLogs table
+      if (result.recordset.length === 0 && logTable !== 'DeviceLogs') {
+        console.log(`⚠️  No results in ${logTable}, checking main DeviceLogs table...`);
+        const mainQuery = `
+          SELECT TOP ${limit}
+            dl.DeviceLogId,
+            dl.UserId,
+            dl.DeviceId,
+            dl.LogDate,
+            FORMAT(dl.LogDate, 'yyyy-MM-dd HH:mm:ss') AS LogDateFormatted,
+            e.EmployeeName
+          FROM DeviceLogs dl
+          LEFT JOIN Employees e ON dl.UserId = e.EmployeeCodeInDevice
+          WHERE CAST(dl.LogDate AS DATE) = CAST('${dateStr}' AS DATE)
+            AND dl.DeviceId = ${deviceId || 20}
+          ORDER BY dl.LogDate DESC
+        `;
+        try {
+          const mainResult = await pool.request().query(mainQuery);
+          console.log(`✅ Main DeviceLogs table returned ${mainResult.recordset.length} rows`);
+          if (mainResult.recordset.length > 0) {
+            return mainResult.recordset;
+          }
+        } catch (e) {
+          console.log(`⚠️  Error querying main DeviceLogs table:`, e);
+        }
+      }
+
+      return result.recordset;
+    } catch (error: any) {
+      console.error('❌ Error fetching logs by date:', error.message);
+      console.error('❌ Error stack:', error.stack);
+      throw error; // Re-throw so controller can handle it
+    }
+  }
+
+  /**
    * Get all attendance logs from Tracklie
    */
   async getAttendanceLogs(
     startDate?: Date,
     endDate?: Date,
     limit?: number,
-    deviceId?: number
+    deviceId?: string | number
   ): Promise<any[]> {
     // Use API if enabled
     if (this.isApiMode()) {
@@ -202,6 +379,8 @@ class TracklieService {
     }
 
     try {
+      console.log(`🔍 getAttendanceLogs called: startDate=${startDate?.toISOString()}, endDate=${endDate?.toISOString()}, limit=${limit}, deviceId=${deviceId}`);
+      
       const tableName = await this.findAttendanceTable();
       if (!tableName) {
         console.warn('⚠️  No attendance table found. Returning empty array.');
@@ -209,75 +388,130 @@ class TracklieService {
       }
       const pool = await this.ensurePool();
 
-      // Determine which monthly table to use based on date
-      let logTable = tableName;
+      // Check if monthly table exists for the date range
+      let monthlyTable: string | null = null;
       if (startDate) {
         const month = startDate.getMonth() + 1;
         const year = startDate.getFullYear();
-        const monthlyTable = `${tableName}_${month}_${year}`;
-        // Check if monthly table exists
+        const monthlyTableName = `${tableName}_${month}_${year}`;
         try {
           const checkResult = await pool.request().query(`
             SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES 
-            WHERE TABLE_NAME = '${monthlyTable}'
+            WHERE TABLE_NAME = '${monthlyTableName}'
           `);
           if (checkResult.recordset.length > 0) {
-            logTable = monthlyTable;
+            monthlyTable = monthlyTableName;
+            console.log(`✅ Found monthly table: ${monthlyTable}`);
           }
         } catch (e) {
-          // Use default table
+          console.log(`⚠️  Error checking monthly table`);
         }
       }
 
-      // Build simple query - only UserId, UserName, LogDate
-      // Format LogDate as string directly in SQL to preserve exact time (no timezone conversion)
+      // Build query conditions using CAST AS DATE to avoid timezone issues
       const dateField = 'LogDate';
-      let query = `
+      const conditions: string[] = [];
+      
+      // Determine effective end date (use provided endDate or default to same day as startDate)
+      const effectiveEndDate = endDate || (startDate ? new Date(startDate) : null);
+      if (effectiveEndDate && startDate) {
+        effectiveEndDate.setDate(effectiveEndDate.getDate() + 1);
+        effectiveEndDate.setHours(0, 0, 0, 0);
+      }
+      
+      // Use CAST AS DATE for exact date matching to avoid timezone issues
+      if (startDate) {
+        // Use parameterized query with date comparison
+        // SQL CAST AS DATE will extract just the date part for comparison
+        conditions.push(`CAST(dl.${dateField} AS DATE) >= CAST(@startDate AS DATE)`);
+      }
+      if (effectiveEndDate) {
+        // For end date, we want to include the entire day, so use < next day
+        // SQL CAST AS DATE will extract just the date part for comparison
+        conditions.push(`CAST(dl.${dateField} AS DATE) < CAST(@endDate AS DATE)`);
+      }
+      if (deviceId !== undefined && deviceId !== null) {
+        conditions.push(`dl.DeviceId = @deviceId`);
+      }
+      const whereClause = conditions.length > 0 ? ` WHERE ${conditions.join(' AND ')}` : '';
+
+      // Build base query template
+      const baseQuery = `
         SELECT TOP ${limit || 1000}
+          dl.DeviceLogId,
           dl.UserId,
+          dl.DeviceId,
           dl.LogDate,
           FORMAT(dl.LogDate, 'yyyy-MM-ddTHH:mm:ss.fff') AS LogDateFormatted,
           e.EmployeeName
-        FROM ${logTable} dl
+        FROM {TABLE} dl
         LEFT JOIN Employees e ON dl.UserId = e.EmployeeCodeInDevice
+        ${whereClause}
+        ORDER BY dl.${dateField} DESC
       `;
-      
-      const conditions: string[] = [];
 
-      if (startDate) {
-        conditions.push(`dl.${dateField} >= @startDate`);
-      }
-      if (endDate) {
-        conditions.push(`dl.${dateField} <= @endDate`);
-      }
-      if (deviceId !== undefined) {
-        conditions.push(`dl.DeviceId = @deviceId`);
+      // Prepare request parameters
+      const prepareRequest = (req: sql.Request) => {
+        if (startDate) {
+          // Use the date as-is (already set to start of day)
+          // SQL CAST AS DATE will extract just the date part for comparison
+          req.input('startDate', sql.DateTime, startDate);
+        }
+        if (effectiveEndDate) {
+          // End date is start of next day (exclusive comparison)
+          req.input('endDate', sql.DateTime, effectiveEndDate);
+        }
+        if (deviceId !== undefined && deviceId !== null) {
+          const deviceIdNum = typeof deviceId === 'string' ? parseInt(deviceId, 10) : Number(deviceId);
+          if (!isNaN(deviceIdNum)) {
+            req.input('deviceId', sql.Int, deviceIdNum);
+          }
+        }
+      };
+
+      // Try monthly table first if it exists
+      if (monthlyTable) {
+        try {
+          const monthlyQuery = baseQuery.replace('{TABLE}', monthlyTable);
+          const monthlyRequest = pool.request();
+          prepareRequest(monthlyRequest);
+          const monthlyResult = await monthlyRequest.query(monthlyQuery);
+          console.log(`✅ Monthly table ${monthlyTable} returned ${monthlyResult.recordset.length} rows`);
+          if (monthlyResult.recordset.length > 0) {
+            return monthlyResult.recordset;
+          }
+        } catch (e) {
+          console.log(`⚠️  Error querying monthly table ${monthlyTable}:`, e);
+        }
       }
 
-      if (conditions.length > 0) {
-        query += ` WHERE ${conditions.join(' AND ')}`;
+      // Query main table
+      const mainQuery = baseQuery.replace('{TABLE}', tableName);
+      const mainRequest = pool.request();
+      prepareRequest(mainRequest);
+      const mainResult = await mainRequest.query(mainQuery);
+      console.log(`✅ Main table ${tableName} returned ${mainResult.recordset.length} rows`);
+
+      // If main table has results, return them
+      if (mainResult.recordset.length > 0) {
+        return mainResult.recordset;
       }
 
-      query += ` ORDER BY dl.${dateField} DESC`;
-
-      const request = pool.request();
-      if (startDate) {
-        // Convert to local date without timezone conversion
-        // SQL Server datetime has no timezone, so we use the date as-is
-        const localStart = new Date(startDate);
-        request.input('startDate', sql.DateTime, localStart);
-      }
-      if (endDate) {
-        // Convert to local date without timezone conversion
-        const localEnd = new Date(endDate);
-        request.input('endDate', sql.DateTime, localEnd);
-      }
-      if (deviceId !== undefined) {
-        request.input('deviceId', sql.Int, deviceId);
+      // If main table has no results but monthly table exists, try monthly table again (in case of date range issues)
+      if (mainResult.recordset.length === 0 && monthlyTable) {
+        try {
+          const monthlyQuery = baseQuery.replace('{TABLE}', monthlyTable);
+          const monthlyRequest = pool.request();
+          prepareRequest(monthlyRequest);
+          const monthlyResult = await monthlyRequest.query(monthlyQuery);
+          console.log(`✅ Re-checking monthly table ${monthlyTable} returned ${monthlyResult.recordset.length} rows`);
+          return monthlyResult.recordset;
+        } catch (e) {
+          console.log(`⚠️  Error re-checking monthly table:`, e);
+        }
       }
 
-      const result = await request.query(query);
-      return result.recordset;
+      return mainResult.recordset;
     } catch (error: any) {
       console.error('❌ Error fetching attendance logs:', error.message);
       return []; // Return empty array instead of throwing

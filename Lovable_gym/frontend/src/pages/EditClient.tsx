@@ -240,7 +240,7 @@ const EditClient = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-transparent p-8">
+      <div className="min-h-screen bg-transparent p-0">
         <div className="text-center py-8">
           <div className="text-gray-400">Loading client...</div>
         </div>
@@ -249,7 +249,8 @@ const EditClient = () => {
   }
 
   return (
-    <div className="min-h-screen bg-transparent p-8">
+    <div className="w-full min-h-screen bg-transparent p-4 flex justify-center">
+      <div className="w-full max-w-7xl">
       <PageHeader 
         title="Edit Client" 
         actionButton={{
@@ -258,7 +259,7 @@ const EditClient = () => {
         }}
       />
       
-      <div className="max-w-6xl mx-auto">
+      <div className="w-full">
         <form onSubmit={handleSubmit} className="gym-card p-8 bg-white shadow-lg">
           {/* Personal Information Row */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
@@ -599,6 +600,7 @@ const EditClient = () => {
             </Button>
           </div>
         </form>
+      </div>
       </div>
     </div>
   );
