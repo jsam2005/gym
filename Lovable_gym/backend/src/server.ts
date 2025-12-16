@@ -252,6 +252,31 @@ const startServer = async () => {
     const fs = await import('fs');
     const frontendPath = path.join(__dirname, '..', '..', 'frontend', 'dist');
     
+    // Serve uploads directory as static files
+    const uploadsPath = path.join(__dirname, '..', '..', 'uploads');
+    try {
+      await fs.promises.access(uploadsPath);
+      app.use('/uploads', express.static(uploadsPath, {
+        maxAge: '1y',
+        etag: true,
+        lastModified: true,
+      }));
+      console.log('✅ Uploads directory served at /uploads');
+    } catch (uploadsError) {
+      // Create uploads directory if it doesn't exist
+      try {
+        await fs.promises.mkdir(uploadsPath, { recursive: true });
+        app.use('/uploads', express.static(uploadsPath, {
+          maxAge: '1y',
+          etag: true,
+          lastModified: true,
+        }));
+        console.log('✅ Created and serving uploads directory at /uploads');
+      } catch (mkdirError) {
+        console.warn('⚠️  Could not create uploads directory:', mkdirError);
+      }
+    }
+    
     try {
       await fs.promises.access(frontendPath);
       
@@ -265,8 +290,8 @@ const startServer = async () => {
       // For any request that is not an API call, send the index.html file.
       // This is the catch-all for client-side routing.
       app.get('*', (req, res, next) => {
-        if (req.path.startsWith('/api') || req.path.startsWith('/iclock')) {
-          return next(); // Skip if it's an API or iClock call
+        if (req.path.startsWith('/api') || req.path.startsWith('/iclock') || req.path.startsWith('/uploads')) {
+          return next(); // Skip if it's an API, iClock, or uploads call
         }
         res.sendFile(path.join(frontendPath, 'index.html'));
       });

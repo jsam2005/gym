@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { LayoutDashboard, Users, UserCheck, UserX, UserPlus, Package, DollarSign, User, Plus, ChevronDown, CreditCard, Fingerprint } from "lucide-react";
+import { LayoutDashboard, Users, UserCheck, UserX, Package, DollarSign, User, ChevronDown, CreditCard, Fingerprint, Edit } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -16,8 +16,6 @@ const clientSubItems = [
   { icon: Users, title: "All Clients", url: "/clients" },
   { icon: UserCheck, title: "Active Clients", url: "/clients/active" },
   { icon: UserX, title: "Inactive Clients", url: "/clients/inactive" },
-  // Add Client feature hidden - clients are added via device and fetched via middleware
-  // { icon: UserPlus, title: "Add Client", url: "/clients/add" },
 ];
 
 const GymLogo = () => (
@@ -66,22 +64,17 @@ export function GymSidebar() {
 
   return (
     <div 
-      className="w-64 h-screen flex flex-col shadow-2xl shadow-gray-900/20 relative overflow-hidden fixed left-0 top-0 z-50" 
+      className="w-64 h-screen border-r border-gray-300 flex flex-col shadow-2xl shadow-gray-900/20 relative overflow-hidden" 
       style={{
         background: 'linear-gradient(180deg, #1f2937 0%, #111827 100%)',
         color: 'white',
-        padding: '0 8px 8px 8px',
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        height: '100vh',
-        overflowY: 'auto'
+        padding: '0 8px 8px 8px'
       }}
     >
-      <div className="absolute inset-0 bg-gradient-to-b from-cyan-500/10 to-blue-600/10 pointer-events-none"></div>
+      <div className="absolute inset-0 bg-gradient-to-b from-cyan-500/10 to-blue-600/10"></div>
       <GymLogo />
       
-      <nav className="flex-1 px-6 py-8 overflow-y-auto relative z-10" style={{ maxHeight: 'calc(100vh - 200px)' }}>
+      <nav className="flex-1 px-6 py-8 overflow-y-auto relative z-10">
         <ul className="space-y-4">
           {menuItems.map((item) => (
             <li key={item.label}>
@@ -122,7 +115,7 @@ export function GymSidebar() {
             </li>
           ))}
           
-          {/* All Clients Collapsible Section - Moved below Dashboard */}
+          {/* Edit Client Collapsible Section */}
           <li>
             <Collapsible open={isClientsOpen} onOpenChange={setIsClientsOpen}>
               <CollapsibleTrigger asChild>
@@ -143,7 +136,7 @@ export function GymSidebar() {
                     <div className="absolute inset-0 bg-gradient-to-r from-cyan-400/20 to-blue-400/20 animate-pulse"></div>
                   )}
                   <div className="relative z-10 flex items-center gap-4">
-                    <Users 
+                    <Edit 
                       className="h-5 w-5 text-white drop-shadow-sm transition-all duration-300"
                     />
                     <span 
@@ -218,7 +211,6 @@ export function GymSidebar() {
     </div>
   );
 }
-
 
 
 

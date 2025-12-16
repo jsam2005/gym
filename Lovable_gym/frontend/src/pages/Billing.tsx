@@ -1,15 +1,17 @@
 import { useState, useEffect } from "react";
 import React from "react";
+import { useNavigate } from "react-router-dom";
 import { PageHeader } from "@/components/PageHeader";
 import { GymTable, Client } from "@/components/GymTable";
 import { KPICard } from "@/components/KPICard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { DollarSign, Users, AlertCircle } from "lucide-react";
+import { DollarSign, Users, AlertCircle, Edit } from "lucide-react";
 import { billingAPI, clientAPI, settingsAPI } from "@/lib/api";
 
 const Billing = () => {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -100,9 +102,10 @@ const Billing = () => {
         });
       }
 
+      // Merge billing data with client data to get amount and pendingAmount
+      let mergedClients: any[] = [];
       if (clientsRes.data.success) {
-        // Merge billing data with client data to get amount and pendingAmount
-        const clients = (clientsRes.data.data || []).map((billingClient: any) => {
+        mergedClients = (clientsRes.data.data || []).map((billingClient: any) => {
           const clientId = String(billingClient.id);
           const clientData = clientDataMap.get(clientId);
           
@@ -111,7 +114,13 @@ const Billing = () => {
           
           // Get amount and pendingAmount from client data (preferred) or billing data (fallback)
           const amount = clientData?.packageAmount || billingClient.amount || billingClient.totalAmount || 0;
-          const pendingAmount = clientData?.pendingAmount || billingClient.balance || billingClient.pendingAmount || 0;
+          const pendingAmount = clientData?.pendingAmount !== undefined && clientData?.pendingAmount !== null
+            ? clientData.pendingAmount 
+            : (billingClient.balance !== undefined && billingClient.balance !== null 
+                ? billingClient.balance 
+                : (billingClient.pendingAmount !== undefined && billingClient.pendingAmount !== null 
+                    ? billingClient.pendingAmount 
+                    : 0));
           
           return {
             ...billingClient,
@@ -124,7 +133,7 @@ const Billing = () => {
             status: clientData?.status || billingClient.status || 'inactive', // Use status from client data (preferred) or billing data (fallback)
           };
         });
-        setBillingClients(clients);
+        setBillingClients(mergedClients);
       }
       if (pendingRes.data.success) {
         setPendingOverdue({
@@ -132,16 +141,14 @@ const Billing = () => {
           overdue: pendingRes.data.data.overdue || [],
         });
       }
-      // Calculate totals from merged billing clients data (strong logic)
-      const currentClients = clientsRes.data.success ? (clientsRes.data.data || []) : [];
       
-      // Calculate totals from the merged client data
-      const totalAmount = currentClients.reduce((sum: number, c: any) => {
+      // Calculate totals from merged client data (uses updated pendingAmount from client data)
+      const totalAmount = mergedClients.reduce((sum: number, c: any) => {
         const amount = c.amount || c.totalAmount || c.packageAmount || 0;
         return sum + (typeof amount === 'number' ? amount : parseFloat(String(amount)) || 0);
       }, 0);
       
-      const totalPending = currentClients.reduce((sum: number, c: any) => {
+      const totalPending = mergedClients.reduce((sum: number, c: any) => {
         const pending = c.pendingAmount !== undefined && c.pendingAmount !== null 
           ? c.pendingAmount 
           : (c.balance !== undefined && c.balance !== null ? c.balance : 0);
@@ -152,18 +159,18 @@ const Billing = () => {
       
       if (summaryRes.data.success) {
         const summaryData = summaryRes.data.data || {};
-        // Use calculated totals from actual client data (more accurate)
+        // Use calculated totals from merged client data (more accurate, includes updated pendingAmount)
         setSummary({ 
-          totalBillings: currentClients.length || summaryData.totalBillings || 0, 
+          totalBillings: mergedClients.length || summaryData.totalBillings || 0, 
           totalAmount: totalAmount || summaryData.totalAmount || 0,
           totalPaid: totalPaid || summaryData.totalPaid || 0,
           pendingAmount: totalPending || summaryData.pendingAmount || 0, 
           thisMonthCollections: summaryData.thisMonthCollections || 0 
         });
       } else {
-        // Fallback: use calculated totals from client data
+        // Fallback: use calculated totals from merged client data
         setSummary({
-          totalBillings: currentClients.length || 0,
+          totalBillings: mergedClients.length || 0,
           totalAmount: totalAmount,
           totalPaid: totalPaid,
           pendingAmount: totalPending,
@@ -185,6 +192,10 @@ const Billing = () => {
   const handleView = (client: Client) => {
     setSelectedClient(client);
     setIsDialogOpen(true);
+  };
+
+  const handleEdit = (client: Client) => {
+    navigate(`/clients/edit/${client.id}`);
   };
 
   const handleDownloadBill = (client: Client) => {
@@ -582,6 +593,7 @@ const Billing = () => {
               showAmount={true}
               showBalance={true}
               onView={handleView}
+              onEdit={handleEdit}
               onDownload={handleDownloadBill}
             />
           )}
@@ -608,12 +620,13 @@ const Billing = () => {
                     <th className="text-left p-4 font-semibold text-gray-700">Due Date</th>
                     <th className="text-center p-4 font-semibold text-gray-700">Days Remaining</th>
                     <th className="text-left p-4 font-semibold text-gray-700">Package</th>
+                    <th className="text-center p-4 font-semibold text-gray-700">Action</th>
                   </tr>
                 </thead>
                 <tbody>
                   {pendingOverdue.pending.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="p-8 text-center text-gray-500">No pending payments</td>
+                      <td colSpan={7} className="p-8 text-center text-gray-500">No pending payments</td>
                     </tr>
                   ) : (
                     pendingOverdue.pending.map((client) => (
@@ -628,6 +641,17 @@ const Billing = () => {
                           </Badge>
                         </td>
                         <td className="p-4">{client.packageType || 'N/A'}</td>
+                        <td className="p-4">
+                          <div className="flex gap-2 justify-center">
+                            <button
+                              onClick={() => handleEdit(client)}
+                              className="h-8 w-8 p-0 flex items-center justify-center text-blue-600 hover:text-blue-700 hover:bg-blue-50 border border-gray-300 rounded-md transition-colors"
+                              title="Edit Client"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </td>
                       </tr>
                     ))
                   )}

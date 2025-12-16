@@ -428,10 +428,39 @@ export const updateClient = async (req: Request, res: Response): Promise<void> =
       return;
     }
 
-    if (updates.amountPaid !== undefined || updates.packageAmount !== undefined) {
-      const packageAmount = updates.packageAmount ?? existingClient.packageAmount;
-      const amountPaid = updates.amountPaid ?? existingClient.amountPaid;
-      updates.pendingAmount = packageAmount - amountPaid;
+    // Handle pendingAmount updates (when directly set)
+    // Priority: If pendingAmount is explicitly set, use it and calculate other fields
+    if (updates.pendingAmount !== undefined) {
+      const packageAmount = updates.packageAmount ?? existingClient.packageAmount ?? 0;
+      const pendingAmount = Number(updates.pendingAmount) || 0;
+      
+      // Update payment status based on pending amount
+      if (pendingAmount === 0) {
+        updates.paymentStatus = 'paid';
+        // If pendingAmount is 0, set amountPaid to packageAmount to keep data consistent
+        if (packageAmount > 0 && updates.amountPaid === undefined) {
+          updates.amountPaid = packageAmount;
+        }
+      } else if (pendingAmount < packageAmount) {
+        updates.paymentStatus = 'partial';
+        // Calculate amountPaid from pendingAmount if not explicitly provided
+        if (updates.amountPaid === undefined) {
+          updates.amountPaid = packageAmount - pendingAmount;
+        }
+      } else {
+        updates.paymentStatus = 'pending';
+        if (updates.amountPaid === undefined) {
+          updates.amountPaid = 0;
+        }
+      }
+    }
+    // Handle amountPaid or packageAmount updates (recalculate pendingAmount only if not directly set)
+    else if (updates.amountPaid !== undefined || updates.packageAmount !== undefined) {
+      const packageAmount = updates.packageAmount ?? existingClient.packageAmount ?? 0;
+      const amountPaid = updates.amountPaid ?? existingClient.amountPaid ?? 0;
+      
+      // Recalculate pendingAmount
+      updates.pendingAmount = Math.max(0, packageAmount - amountPaid);
 
       if (amountPaid >= packageAmount) {
         updates.paymentStatus = 'paid';
