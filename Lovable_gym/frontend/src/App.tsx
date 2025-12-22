@@ -38,7 +38,7 @@ const App = () => (
               <Route path="/clients/active" element={<ActiveClients />} />
               <Route path="/clients/inactive" element={<InactiveClients />} />
               {/* Add Client route hidden - clients are added via device and fetched via middleware */}
-              {/* <Route path="/clients/add" element={<AddClient />} /> */}
+              <Route path="/clients/add" element={<AddClient />} />
               <Route path="/clients/edit/:id" element={<EditClient />} />
               <Route path="/packages" element={<Packages />} />
               <Route path="/billing" element={<Billing />} />
@@ -54,4 +54,3 @@ const App = () => (
 );
 
 export default App;
-

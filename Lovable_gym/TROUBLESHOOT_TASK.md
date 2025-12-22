@@ -240,3 +240,11 @@ Your task should have:
    - Or use NSSM Windows Service (see SETUP_NSSM_SERVICE.ps1)
 
 
+
+
+
+
+
+
+
+

@@ -131,3 +131,11 @@ Get-Content logs\frontend.log -Tail 10
 
 **Most Important:** Enable "Run with highest privileges" - this is likely the main issue!
 
+
+
+
+
+
+
+
+

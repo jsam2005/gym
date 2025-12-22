@@ -291,3 +291,11 @@ After completing these steps:
 
 That's it! Your application will now start automatically every time you turn on your computer. 🎉
 
+
+
+
+
+
+
+
+
