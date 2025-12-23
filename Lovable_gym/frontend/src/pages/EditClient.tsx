@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useNavigate, useParams } from "react-router-dom";
 import { useToast } from "@/components/ui/use-toast";
 import { clientAPI, packageAPI } from "@/lib/api";
+import { Switch } from "@/components/ui/switch";
 
 const EditClient = () => {
   const { id } = useParams<{ id: string }>();
@@ -32,7 +33,8 @@ const EditClient = () => {
     toTime: "",
     toAmPm: "PM",
     paymentMode: "",
-    status: "active"
+    status: "active",
+    isTrainer: false
   });
   const [packages, setPackages] = useState<any[]>([]);
   const [loadingPackages, setLoadingPackages] = useState(true);
@@ -97,7 +99,8 @@ const EditClient = () => {
             toTime,
             toAmPm,
             paymentMode: (client as any).paymentMode || "",
-            status: client.status || "active"
+            status: client.status || "active",
+            isTrainer: Boolean((client as any).isTrainer || client.role === "trainer")
           };
           
           setFormData(initialFormData);
@@ -200,6 +203,9 @@ const EditClient = () => {
     
     if (formData.paymentMode !== originalFormData.paymentMode) {
       updates.paymentMode = formData.paymentMode || undefined;
+    }
+    if (formData.isTrainer !== originalFormData.isTrainer) {
+      updates.isTrainer = formData.isTrainer;
     }
 
     // If no fields were modified, show message and return
@@ -578,6 +584,19 @@ const EditClient = () => {
                   <SelectItem value="suspended">Suspended</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            <div className="md:col-span-2">
+              <Label className="text-sm font-medium mb-2 block">Role</Label>
+              <div className="flex items-center justify-between rounded-xl border border-border bg-muted/20 px-4 py-3">
+                <div>
+                  <p className="text-sm font-semibold text-foreground">Mark as Trainer</p>
+                  <p className="text-xs text-muted-foreground">Enable to show this client under the Trainers list.</p>
+                </div>
+                <Switch
+                  checked={formData.isTrainer}
+                  onCheckedChange={(checked) => setFormData((prev) => ({ ...prev, isTrainer: checked }))}
+                />
+              </div>
             </div>
           </div>
 

@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { PageHeader } from "@/components/PageHeader";
 import { GymTable, Client } from "@/components/GymTable";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { clientAPI } from "@/lib/api";
+import { transformClientList } from "@/utils/clientTransform";
 
 const ActiveClients = () => {
   const navigate = useNavigate();
@@ -13,48 +14,28 @@ const ActiveClients = () => {
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-  // Fetch active clients from API
-  useEffect(() => {
-    const fetchActiveClients = async () => {
-      try {
-        setLoading(true);
-        const response = await clientAPI.getActive();
-        if (response.data.success) {
-          // Transform API data to match the expected format
-          const transformedClients = (Array.isArray(response.data.clients) ? response.data.clients : []).map((client: any) => ({
-            id: client._id,
-            name: `${client.firstName} ${client.lastName}`,
-            contact: client.phone,
-            status: client.status,
-            billingDate: (client as any).billingDate 
-              ? new Date((client as any).billingDate).toLocaleDateString('en-GB', { 
-                  day: 'numeric', 
-                  month: 'long', 
-                  year: 'numeric' 
-                })
-              : client.packageStartDate 
-                ? new Date(client.packageStartDate).toLocaleDateString('en-GB', { 
-                    day: 'numeric', 
-                    month: 'long', 
-                    year: 'numeric' 
-                  })
-                : 'N/A',
-            duration: client.packageType
-          }));
-          setClients(transformedClients);
-        }
-      } catch (error) {
-        console.error('Error fetching active clients:', error);
+  const fetchActiveClients = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await clientAPI.getActive();
+      if (response.data.success) {
+        const transformed = transformClientList(response.data.clients);
+        setClients(transformed);
+      } else {
         setClients([]);
-      } finally {
-        setLoading(false);
       }
-    };
-
-    fetchActiveClients();
+    } catch (error) {
+      console.error('Error fetching active clients:', error);
+      setClients([]);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  // Listen for client update events to refresh data
+  useEffect(() => {
+    fetchActiveClients();
+  }, [fetchActiveClients]);
+
   useEffect(() => {
     const handleClientUpdate = () => {
       fetchActiveClients();
@@ -62,11 +43,12 @@ const ActiveClients = () => {
     
     window.addEventListener('clientUpdated', handleClientUpdate);
     return () => window.removeEventListener('clientUpdated', handleClientUpdate);
-  }, []);
+  }, [fetchActiveClients]);
 
   const filteredClients = clients.filter(client =>
     client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    client.contact.includes(searchTerm)
+    client.contact.includes(searchTerm) ||
+    String(client.deviceId ?? client.esslUserId ?? client.id).includes(searchTerm)
   );
 
   const handleView = (client: Client) => {

@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { GymTable, Client } from "@/components/GymTable";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { clientAPI } from "@/lib/api";
+import { transformClientList } from "@/utils/clientTransform";
 
 const InactiveClients = () => {
   const navigate = useNavigate();
@@ -19,28 +20,10 @@ const InactiveClients = () => {
       setLoading(true);
       const response = await clientAPI.getInactive();
       if (response.data.success) {
-        // Transform API data to match the expected format
-        const transformedClients = (Array.isArray(response.data.clients) ? response.data.clients : []).map((client: any) => ({
-          id: client._id,
-          name: `${client.firstName} ${client.lastName}`,
-          contact: client.phone,
-          status: client.status,
-          billingDate: (client as any).billingDate 
-            ? new Date((client as any).billingDate).toLocaleDateString('en-GB', { 
-                day: 'numeric', 
-                month: 'long', 
-                year: 'numeric' 
-              })
-            : client.packageStartDate 
-              ? new Date(client.packageStartDate).toLocaleDateString('en-GB', { 
-                  day: 'numeric', 
-                  month: 'long', 
-                  year: 'numeric' 
-                })
-              : 'N/A',
-          duration: client.packageType
-        }));
+        const transformedClients = transformClientList(response.data.clients);
         setClients(transformedClients);
+      } else {
+        setClients([]);
       }
     } catch (error) {
       console.error('Error fetching inactive clients:', error);
@@ -67,7 +50,8 @@ const InactiveClients = () => {
 
   const filteredClients = clients.filter(client =>
     client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    client.contact.includes(searchTerm)
+    client.contact.includes(searchTerm) ||
+    String(client.deviceId ?? client.esslUserId ?? client.id).includes(searchTerm)
   );
 
   const handleView = (client: Client) => {

@@ -8,9 +8,9 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/use-toast";
 import { clientAPI } from "@/lib/api";
+import { transformClientList } from "@/utils/clientTransform";
 
 const AllClients = () => {
-  console.log("AllClients component is rendering");
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
@@ -31,36 +31,7 @@ const AllClients = () => {
       }
         const response = await clientAPI.getAll();
         if (response.data && response.data.success && Array.isArray(response.data.clients)) {
-          // Transform API data to match the expected format
-        // Transform and deduplicate clients
-        const transformedClients = response.data.clients
-          .map((client: any, index: number) => ({
-            id: client.id || client._id || `client-${index}`, // EmployeeId from database (unique)
-            deviceId: client.esslUserId || client.employeeCodeInDevice || '', // Device ID (EmployeeCodeInDevice)
-            name: `${client.firstName || ''} ${client.lastName || ''}`.trim() || 'Unknown',
-            contact: client.phone || '',
-            status: client.status || 'inactive',
-            billingDate: (client as any).billingDate 
-              ? new Date((client as any).billingDate).toLocaleDateString('en-GB', { 
-                  day: 'numeric', 
-                  month: 'long', 
-                  year: 'numeric' 
-                })
-              : client.packageStartDate 
-                ? new Date(client.packageStartDate).toLocaleDateString('en-GB', { 
-                    day: 'numeric', 
-                    month: 'long', 
-                    year: 'numeric' 
-                  })
-                : 'N/A',
-            duration: (client as any).months 
-              ? `${(client as any).months} month${(client as any).months > 1 ? 's' : ''}` 
-              : client.packageType || 'N/A'
-          }))
-          // Remove duplicates based on EmployeeId (id field)
-          .filter((client: any, index: number, self: any[]) => 
-            index === self.findIndex((c: any) => c.id === client.id)
-          );
+          const transformedClients = transformClientList(response.data.clients);
           setClients(transformedClients);
         } else {
           console.warn('Invalid API response:', response.data);
@@ -104,7 +75,8 @@ const AllClients = () => {
 
   const filteredClients = clients.filter(client =>
     client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    client.contact.includes(searchTerm)
+    client.contact.includes(searchTerm) ||
+    String(client.deviceId ?? client.esslUserId ?? client.id).includes(searchTerm)
   );
 
   const handleView = (client: Client) => {

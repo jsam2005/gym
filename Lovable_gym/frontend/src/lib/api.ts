@@ -57,6 +57,7 @@ export const clientAPI = {
   getAll: (params?: any) => api.get('/clients', { params }),
   getActive: () => api.get('/clients', { params: { status: 'active' } }),
   getInactive: () => api.get('/clients', { params: { status: 'inactive' } }),
+  getTrainers: () => api.get('/clients', { params: { role: 'trainer', limit: 1000 } }),
   getById: (id: string) => api.get(`/clients/${id}`),
   getStats: () => api.get('/clients/stats'),
   create: (data: any) => api.post('/clients', data),

@@ -15,13 +15,64 @@ export interface GymClientData {
   billingDate?: Date;
   preferredTimings?: string;
   paymentMode?: string;
+  isTrainer?: boolean;
 }
+
+let gymClientsTableExists: boolean | null = null;
+let isTrainerColumnAvailable = false;
+
+const ensureTrainerColumn = async (): Promise<boolean> => {
+  if (gymClientsTableExists === false) {
+    return false;
+  }
+
+  try {
+    const pool = await ensurePool();
+    if (gymClientsTableExists === null) {
+      const tableCheck = await pool.request().query(`
+        SELECT TABLE_NAME 
+        FROM INFORMATION_SCHEMA.TABLES 
+        WHERE TABLE_NAME = 'GymClients' AND TABLE_SCHEMA = 'dbo'
+      `);
+      gymClientsTableExists = tableCheck.recordset.length > 0;
+    }
+
+    if (!gymClientsTableExists) {
+      return false;
+    }
+
+    if (!isTrainerColumnAvailable) {
+      const columnCheck = await pool.request().query(`
+        SELECT COLUMN_NAME 
+        FROM INFORMATION_SCHEMA.COLUMNS 
+        WHERE TABLE_NAME = 'GymClients' 
+          AND TABLE_SCHEMA = 'dbo'
+          AND COLUMN_NAME = 'IsTrainer'
+      `);
+
+      if (columnCheck.recordset.length === 0) {
+        await pool.request().query(`
+          ALTER TABLE dbo.GymClients 
+          ADD IsTrainer BIT NOT NULL CONSTRAINT DF_GymClients_IsTrainer DEFAULT(0);
+        `);
+      }
+
+      isTrainerColumnAvailable = true;
+    }
+
+    return true;
+  } catch (error: any) {
+    console.warn(`⚠️ Could not ensure IsTrainer column on GymClients table: ${error.message}`);
+    return false;
+  }
+};
 
 /**
  * Create a new gym client record (website-specific additional info)
  */
 export const createGymClient = async (data: GymClientData): Promise<void> => {
   const pool = await ensurePool();
+  const hasTrainerColumn = await ensureTrainerColumn();
   
   await runQuery(async (request) => {
     request.input('EmployeeId', sql.Int, data.employeeId);
@@ -37,17 +88,20 @@ export const createGymClient = async (data: GymClientData): Promise<void> => {
     request.input('BillingDate', sql.DateTime, data.billingDate || null);
     request.input('PreferredTimings', sql.NVarChar(50), data.preferredTimings || null);
     request.input('PaymentMode', sql.NVarChar(50), data.paymentMode || null);
+    if (hasTrainerColumn) {
+      request.input('IsTrainer', sql.Bit, data.isTrainer ? 1 : 0);
+    }
     
     return request.query(`
       INSERT INTO GymClients (
         EmployeeId, EmployeeCodeInDevice, BloodGroup, Months, Trainer,
         PackageType, TotalAmount, AmountPaid, PendingAmount, RemainingDate, BillingDate,
-        PreferredTimings, PaymentMode, CreatedAt, UpdatedAt
+        PreferredTimings, PaymentMode${hasTrainerColumn ? ', IsTrainer' : ''}, CreatedAt, UpdatedAt
       )
       VALUES (
         @EmployeeId, @EmployeeCodeInDevice, @BloodGroup, @Months, @Trainer,
         @PackageType, @TotalAmount, @AmountPaid, @PendingAmount, @RemainingDate, @BillingDate,
-        @PreferredTimings, @PaymentMode, GETDATE(), GETDATE()
+        @PreferredTimings, @PaymentMode${hasTrainerColumn ? ', @IsTrainer' : ''}, GETDATE(), GETDATE()
       )
     `);
   });
@@ -59,6 +113,7 @@ export const createGymClient = async (data: GymClientData): Promise<void> => {
 export const getGymClientByEmployeeId = async (employeeId: number): Promise<GymClientData | null> => {
   try {
     const pool = await ensurePool();
+    const hasTrainerColumn = await ensureTrainerColumn();
     
     // Check if table exists first
     const tableCheck = await pool.request().query(`
@@ -87,10 +142,10 @@ export const getGymClientByEmployeeId = async (employeeId: number): Promise<GymC
       const selectFields = hasBillingDate 
         ? `EmployeeId, EmployeeCodeInDevice, BloodGroup, Months, Trainer, PackageType,
            TotalAmount, AmountPaid, PendingAmount, RemainingDate, BillingDate,
-           PreferredTimings, PaymentMode`
+           PreferredTimings, PaymentMode${hasTrainerColumn ? ', IsTrainer' : ''}`
         : `EmployeeId, EmployeeCodeInDevice, BloodGroup, Months, Trainer, PackageType,
            TotalAmount, AmountPaid, PendingAmount, RemainingDate,
-           PreferredTimings, PaymentMode`;
+           PreferredTimings, PaymentMode${hasTrainerColumn ? ', IsTrainer' : ''}`;
       
       return request.query(`
         SELECT ${selectFields}
@@ -118,6 +173,7 @@ export const getGymClientByEmployeeId = async (employeeId: number): Promise<GymC
       billingDate: row.BillingDate ? new Date(row.BillingDate) : undefined, // Will be undefined if column doesn't exist
       preferredTimings: row.PreferredTimings,
       paymentMode: row.PaymentMode,
+      isTrainer: hasTrainerColumn ? Boolean(row.IsTrainer) : undefined,
     };
   } catch (error: any) {
     // If table doesn't exist, return null (not an error)
@@ -133,6 +189,7 @@ export const getGymClientByEmployeeId = async (employeeId: number): Promise<GymC
  */
 export const updateGymClient = async (employeeId: number, updates: Partial<GymClientData>): Promise<void> => {
   const pool = await ensurePool();
+  const hasTrainerColumn = await ensureTrainerColumn();
   
   // First, check if record exists
   const existingRecord = await getGymClientByEmployeeId(employeeId);
@@ -175,6 +232,7 @@ export const updateGymClient = async (employeeId: number, updates: Partial<GymCl
       billingDate: updates.billingDate,
       preferredTimings: updates.preferredTimings,
       paymentMode: updates.paymentMode,
+      isTrainer: updates.isTrainer,
     });
     return; // Record created, we're done
   }
@@ -240,6 +298,10 @@ export const updateGymClient = async (employeeId: number, updates: Partial<GymCl
     updateParams['PaymentMode'] = updates.paymentMode || null;
     updateFields.push('PaymentMode = @PaymentMode');
   }
+  if (hasTrainerColumn && updates.isTrainer !== undefined) {
+    updateParams['IsTrainer'] = updates.isTrainer ? 1 : 0;
+    updateFields.push('IsTrainer = @IsTrainer');
+  }
   
   if (updateFields.length === 0) {
     return; // No updates
@@ -282,6 +344,9 @@ export const updateGymClient = async (employeeId: number, updates: Partial<GymCl
     }
     if (updateParams['PaymentMode'] !== undefined) {
       request.input('PaymentMode', sql.NVarChar(50), updateParams['PaymentMode']);
+    }
+    if (hasTrainerColumn && updateParams['IsTrainer'] !== undefined) {
+      request.input('IsTrainer', sql.Bit, updateParams['IsTrainer']);
     }
     
     return request.query(`

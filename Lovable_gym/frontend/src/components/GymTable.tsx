@@ -26,6 +26,8 @@ export interface Client {
   pendingAmount?: number; // Pending amount
   amountPaid?: number; // Amount paid
   remainingDuration?: string;
+  role?: 'client' | 'trainer';
+  isTrainer?: boolean;
 }
 
 interface GymTableProps {

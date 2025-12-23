@@ -78,6 +78,8 @@ const mapClient = (row: any): ClientEntity => {
     photo: null, // Empty for now
     createdAt: new Date().toISOString(), // Default
     updatedAt: new Date().toISOString(), // Default
+    role: 'client',
+    isTrainer: false,
   };
 };
 
@@ -259,6 +261,7 @@ export const getClients = async (params: {
   search?: string;
   page?: number;
   limit?: number;
+  role?: string;
 }): Promise<ClientListResult> => {
   // Return empty result if SQL is disabled
   if (process.env.SQL_DISABLED === 'true' || process.env.USE_API_ONLY === 'true') {
@@ -273,11 +276,14 @@ export const getClients = async (params: {
   }
 
   const { pageNumber, pageSize, offset } = mapPagination(params.page, params.limit);
+  const roleFilterRequested = Boolean(params.role);
+  const effectiveLimit = roleFilterRequested ? Math.max(pageSize, 1000) : pageSize;
+  const effectiveOffset = roleFilterRequested ? 0 : offset;
 
   try {
     const result = await runQuery(async (request) => {
-    request.input('Limit', sql.Int, pageSize);
-    request.input('Offset', sql.Int, offset);
+    request.input('Limit', sql.Int, effectiveLimit);
+    request.input('Offset', sql.Int, effectiveOffset);
 
     const whereClauses: string[] = [];
     
@@ -354,6 +360,10 @@ export const getClients = async (params: {
         (client as any).preferredTimings = gymClient.preferredTimings;
         (client as any).paymentMode = gymClient.paymentMode;
         (client as any).billingDate = gymClient.billingDate ? gymClient.billingDate.toISOString() : undefined;
+        if (gymClient.isTrainer !== undefined) {
+          client.isTrainer = Boolean(gymClient.isTrainer);
+          client.role = client.isTrainer ? 'trainer' : 'client';
+        }
         }
       }
     } catch (gymClientError: any) {
@@ -372,17 +382,29 @@ export const getClients = async (params: {
       client.fingerprintEnrolled = row.HasBiometric === 1;
     }
     
+    if (client.isTrainer === undefined) {
+      client.isTrainer = false;
+      client.role = 'client';
+    }
     return client;
   }));
   const totalRow = recordsets?.[1]?.[0] as { Total?: number } | undefined;
   const total = Number(totalRow?.Total || 0);
 
+  const normalizedRole = params.role?.toLowerCase();
+  let filteredClients = clients;
+  if (normalizedRole === 'trainer') {
+    filteredClients = clients.filter((client) => client.isTrainer);
+  } else if (normalizedRole === 'client') {
+    filteredClients = clients.filter((client) => !client.isTrainer);
+  }
+
     return {
-      clients,
-      total,
-      page: pageNumber,
-      limit: pageSize,
-      pages: Math.ceil(total / pageSize),
+      clients: filteredClients,
+      total: normalizedRole ? filteredClients.length : total,
+      page: normalizedRole ? 1 : pageNumber,
+      limit: normalizedRole ? filteredClients.length : pageSize,
+      pages: normalizedRole ? 1 : Math.ceil(total / pageSize),
     };
   } catch (error: any) {
     if (error.message?.includes('SQL_DISABLED')) {
@@ -444,6 +466,10 @@ export const getClientById = async (id: string): Promise<ClientEntity | null> =>
         (client as any).months = gymClient.months;
         (client as any).preferredTimings = gymClient.preferredTimings;
         (client as any).paymentMode = gymClient.paymentMode;
+        if (gymClient.isTrainer !== undefined) {
+          client.isTrainer = Boolean(gymClient.isTrainer);
+          client.role = client.isTrainer ? 'trainer' : 'client';
+        }
       }
     } catch (gymClientError: any) {
       console.warn(`⚠️ Could not fetch GymClients data: ${gymClientError.message}`);
@@ -458,6 +484,10 @@ export const getClientById = async (id: string): Promise<ClientEntity | null> =>
     client.address = row.Address || client.address;
     client.dateOfBirth = row.DateOfBirth ? new Date(row.DateOfBirth).toISOString() : client.dateOfBirth;
     client.fingerprintEnrolled = row.HasBiometric === 1;
+    if (client.isTrainer === undefined) {
+      client.isTrainer = false;
+      client.role = 'client';
+    }
 
     return client;
   } catch (error: any) {

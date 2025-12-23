@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { LayoutDashboard, Users, UserCheck, UserX, Package, DollarSign, User, ChevronDown, CreditCard, Fingerprint, Edit } from "lucide-react";
+import { LayoutDashboard, Users, UserCheck, UserX, Package, DollarSign, User, ChevronDown, CreditCard, Fingerprint, Edit, UserCog } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -16,6 +16,7 @@ const clientSubItems = [
   { icon: Users, title: "All Clients", url: "/clients" },
   { icon: UserCheck, title: "Active Clients", url: "/clients/active" },
   { icon: UserX, title: "Inactive Clients", url: "/clients/inactive" },
+  { icon: UserCog, title: "Trainers", url: "/clients/trainers" },
 ];
 
 const GymLogo = () => (
