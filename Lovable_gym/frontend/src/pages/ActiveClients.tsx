@@ -58,11 +58,13 @@ const ActiveClients = () => {
       if (response.data.success && response.data.client) {
         const freshClient = response.data.client;
         // Transform to match Client interface
-        const updatedClient: Client = {
+        const updatedClient: any = {
           id: freshClient.id || freshClient._id || client.id,
           deviceId: freshClient.esslUserId || freshClient.employeeCodeInDevice || freshClient.deviceId || client.deviceId,
           name: `${freshClient.firstName || ''} ${freshClient.lastName || ''}`.trim() || freshClient.name || client.name,
           contact: freshClient.phone || freshClient.contact || client.contact,
+          email: freshClient.email || '',
+          gender: freshClient.gender || '',
           status: freshClient.status || client.status,
           billingDate: freshClient.packageStartDate 
             ? new Date(freshClient.packageStartDate).toLocaleDateString('en-GB', { 
@@ -72,6 +74,12 @@ const ActiveClients = () => {
               })
             : client.billingDate,
           duration: freshClient.packageType || freshClient.duration || client.duration,
+          // Include GymClients data
+          bloodGroup: freshClient.bloodGroup || null,
+          amount: freshClient.packageAmount || freshClient.totalAmount || null,
+          packageAmount: freshClient.packageAmount || freshClient.totalAmount || null,
+          amountPaid: freshClient.amountPaid || null,
+          pendingAmount: freshClient.pendingAmount || null,
         };
         setSelectedClient(updatedClient);
       } else {
@@ -186,7 +194,7 @@ const ActiveClients = () => {
                         color: '#F9FAFB',
                         fontWeight: '500'
                       }}>
-                        Male
+                        {(selectedClient as any).gender || ''}
                       </div>
                     </div>
                     <div>
@@ -202,7 +210,7 @@ const ActiveClients = () => {
                         color: '#F9FAFB',
                         fontWeight: '500'
                       }}>
-                        {selectedClient.contact}
+                        {selectedClient.contact || ''}
                       </div>
                     </div>
                     <div>
@@ -218,7 +226,7 @@ const ActiveClients = () => {
                         color: '#F9FAFB',
                         fontWeight: '500'
                       }}>
-                        {selectedClient.name.toLowerCase().replace(' ', '.')}@gmail.com
+                        {(selectedClient as any).email || ''}
                       </div>
                     </div>
                   </div>
@@ -253,7 +261,7 @@ const ActiveClients = () => {
                         color: '#F9FAFB',
                         fontWeight: '500'
                       }}>
-                        {selectedClient.billingDate}
+                        {selectedClient.billingDate || ''}
                       </div>
                     </div>
                     <div>
@@ -269,7 +277,7 @@ const ActiveClients = () => {
                         color: '#F9FAFB',
                         fontWeight: '500'
                       }}>
-                        {selectedClient.duration}
+                        {selectedClient.duration || ''}
                       </div>
                     </div>
                     <div>
@@ -285,7 +293,7 @@ const ActiveClients = () => {
                         color: '#F9FAFB',
                         fontWeight: '500'
                       }}>
-                        O+
+                        {(selectedClient as any).bloodGroup || ''}
                       </div>
                     </div>
                     <div>
@@ -301,7 +309,9 @@ const ActiveClients = () => {
                         color: '#F9FAFB',
                         fontWeight: '500'
                       }}>
-                        ₹5,000
+                        {(selectedClient as any).amount || (selectedClient as any).packageAmount 
+                          ? `₹${((selectedClient as any).amount || (selectedClient as any).packageAmount || 0).toLocaleString('en-IN')}`
+                          : ''}
                       </div>
                     </div>
                   </div>

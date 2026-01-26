@@ -419,6 +419,30 @@ export const getClientById = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
+    // Fetch GymClients data to include blood group, amount, etc.
+    try {
+      const employeeId = parseInt(id);
+      if (!isNaN(employeeId)) {
+        const gymClient = await getGymClientByEmployeeId(employeeId);
+        if (gymClient) {
+          // Merge GymClients data into client response
+          (client as any).bloodGroup = gymClient.bloodGroup || null;
+          (client as any).packageAmount = gymClient.totalAmount || null;
+          (client as any).amountPaid = gymClient.amountPaid || null;
+          (client as any).pendingAmount = gymClient.pendingAmount || null;
+          (client as any).packageType = gymClient.packageType || null;
+          (client as any).months = gymClient.months || null;
+          (client as any).trainer = gymClient.trainer || null;
+          (client as any).preferredTimings = gymClient.preferredTimings || null;
+          (client as any).paymentMode = gymClient.paymentMode || null;
+          (client as any).remainingDate = gymClient.remainingDate || null;
+        }
+      }
+    } catch (gymClientError: any) {
+      console.warn(`⚠️ Could not fetch gym client data: ${gymClientError.message}`);
+      // Continue without gym client data
+    }
+
     res.json({
       success: true,
       client,

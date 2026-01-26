@@ -210,6 +210,7 @@ const Billing = () => {
             balance: freshBillingClient.balance || freshBillingClient.pendingAmount || client.balance,
             pendingAmount: freshBillingClient.pendingAmount || freshBillingClient.balance || client.pendingAmount,
             contact: freshBillingClient.contact || client.contact,
+            bloodGroup: freshBillingClient.bloodGroup || (client as any).bloodGroup || null,
           };
         }
       }
@@ -221,7 +222,12 @@ const Billing = () => {
           ...updatedClient,
           name: `${freshClient.firstName || ''} ${freshClient.lastName || ''}`.trim() || updatedClient.name,
           contact: freshClient.phone || freshClient.contact || updatedClient.contact,
+          email: freshClient.email || (updatedClient as any).email || '',
+          gender: freshClient.gender || (updatedClient as any).gender || '',
           status: freshClient.status || updatedClient.status,
+          // Include GymClients data
+          bloodGroup: freshClient.bloodGroup || (updatedClient as any).bloodGroup || null,
+          packageAmount: freshClient.packageAmount || freshClient.totalAmount || (updatedClient as any).packageAmount || null,
         };
       }
       
@@ -847,7 +853,9 @@ const Billing = () => {
                         fontWeight: '500',
                         textAlign: 'left'
                       }}>
-                        ₹{((selectedClient.amount || selectedClient.totalAmount || selectedClient.packageAmount || 0)).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                        {(selectedClient.amount || selectedClient.totalAmount || selectedClient.packageAmount)
+                          ? `₹${((selectedClient.amount || selectedClient.totalAmount || selectedClient.packageAmount || 0)).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
+                          : ''}
                       </div>
                     </div>
                     <div>
@@ -864,11 +872,15 @@ const Billing = () => {
                         fontWeight: '500',
                         textAlign: 'left'
                       }}>
-                        ₹{((selectedClient.pendingAmount !== undefined && selectedClient.pendingAmount !== null 
+                        {((selectedClient.pendingAmount !== undefined && selectedClient.pendingAmount !== null && selectedClient.pendingAmount > 0)
                           ? selectedClient.pendingAmount 
-                          : (selectedClient.balance !== undefined && selectedClient.balance !== null 
+                          : (selectedClient.balance !== undefined && selectedClient.balance !== null && selectedClient.balance > 0
                               ? selectedClient.balance 
-                              : 0))).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                              : null))
+                          ? `₹${((selectedClient.pendingAmount !== undefined && selectedClient.pendingAmount !== null 
+                              ? selectedClient.pendingAmount 
+                              : selectedClient.balance || 0)).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
+                          : ''}
                       </div>
                     </div>
                     <div>
@@ -885,7 +897,24 @@ const Billing = () => {
                         fontWeight: '500',
                         textAlign: 'left'
                       }}>
-                        {selectedClient.remainingDuration || 'N/A'}
+                        {selectedClient.remainingDuration && selectedClient.remainingDuration !== 'N/A' ? selectedClient.remainingDuration : ''}
+                      </div>
+                    </div>
+                    <div>
+                      <label style={{color: '#D1D5DB', fontSize: '14px', display: 'block', marginBottom: '8px', fontWeight: '500'}}>
+                        Blood Group
+                      </label>
+                      <div style={{
+                        backgroundColor: '#4B5563',
+                        padding: '12px 16px',
+                        borderRadius: '8px',
+                        border: 'none',
+                        fontSize: '16px',
+                        color: '#F9FAFB',
+                        fontWeight: '500',
+                        textAlign: 'left'
+                      }}>
+                        {(selectedClient as any).bloodGroup || ''}
                       </div>
                     </div>
                   </div>

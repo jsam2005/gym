@@ -71,6 +71,7 @@ export const getBillingClients = async (req: Request, res: Response): Promise<vo
           gc.PaymentMode,
           gc.Trainer,
           gc.PreferredTimings,
+          gc.BloodGroup,
           gc.CreatedAt as BillingDate,
           gc.UpdatedAt as LastUpdated
         FROM Employees e
@@ -135,6 +136,7 @@ export const getBillingClients = async (req: Request, res: Response): Promise<vo
         packageType: row.PackageType || 'N/A',
         trainer: row.Trainer || 'N/A',
         timings: row.PreferredTimings || 'N/A',
+        bloodGroup: row.BloodGroup || null,
         remainingDate: remainingDate,
         daysRemaining: daysRemaining,
         lastUpdated: row.LastUpdated ? new Date(row.LastUpdated).toLocaleDateString('en-GB', {
