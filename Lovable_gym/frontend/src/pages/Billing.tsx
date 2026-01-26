@@ -189,9 +189,50 @@ const Billing = () => {
     client.contact.includes(searchTerm)
   );
 
-  const handleView = (client: Client) => {
-    setSelectedClient(client);
-    setIsDialogOpen(true);
+  const handleView = async (client: Client) => {
+    try {
+      // Fetch fresh data from API to get latest updates
+      const [clientRes, billingRes] = await Promise.all([
+        clientAPI.getById(String(client.id)).catch(() => null),
+        billingAPI.getClients().catch(() => null),
+      ]);
+      
+      // Try to get updated client data from billing API first (has billing-specific data)
+      let updatedClient = client;
+      if (billingRes?.data?.success && billingRes.data.data) {
+        const freshBillingClient = billingRes.data.data.find((c: any) => String(c.id) === String(client.id));
+        if (freshBillingClient) {
+          updatedClient = {
+            ...client,
+            ...freshBillingClient,
+            // Merge billing-specific fields
+            amount: freshBillingClient.amount || freshBillingClient.totalAmount || client.amount,
+            balance: freshBillingClient.balance || freshBillingClient.pendingAmount || client.balance,
+            pendingAmount: freshBillingClient.pendingAmount || freshBillingClient.balance || client.pendingAmount,
+            contact: freshBillingClient.contact || client.contact,
+          };
+        }
+      }
+      
+      // If client API has more detailed info, merge it
+      if (clientRes?.data?.success && clientRes.data.client) {
+        const freshClient = clientRes.data.client;
+        updatedClient = {
+          ...updatedClient,
+          name: `${freshClient.firstName || ''} ${freshClient.lastName || ''}`.trim() || updatedClient.name,
+          contact: freshClient.phone || freshClient.contact || updatedClient.contact,
+          status: freshClient.status || updatedClient.status,
+        };
+      }
+      
+      setSelectedClient(updatedClient);
+      setIsDialogOpen(true);
+    } catch (error) {
+      console.error('Error fetching fresh client data:', error);
+      // Fallback to cached data if API fails
+      setSelectedClient(client);
+      setIsDialogOpen(true);
+    }
   };
 
   const handleEdit = (client: Client) => {

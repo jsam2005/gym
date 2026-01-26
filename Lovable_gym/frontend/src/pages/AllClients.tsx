@@ -74,8 +74,38 @@ const AllClients = () => {
     client.contact.includes(searchTerm)
   );
 
-  const handleView = (client: Client) => {
-    setSelectedClient(client);
+  const handleView = async (client: Client) => {
+    try {
+      // Fetch fresh data from API to get latest updates
+      const response = await clientAPI.getById(String(client.id));
+      if (response.data.success && response.data.client) {
+        const freshClient = response.data.client;
+        // Transform to match Client interface
+        const updatedClient: Client = {
+          id: freshClient.id || freshClient._id || client.id,
+          deviceId: freshClient.esslUserId || freshClient.employeeCodeInDevice || freshClient.deviceId || client.deviceId,
+          name: `${freshClient.firstName || ''} ${freshClient.lastName || ''}`.trim() || freshClient.name || client.name,
+          contact: freshClient.phone || freshClient.contact || client.contact,
+          status: freshClient.status || client.status,
+          billingDate: freshClient.packageStartDate 
+            ? new Date(freshClient.packageStartDate).toLocaleDateString('en-GB', { 
+                day: 'numeric', 
+                month: 'long', 
+                year: 'numeric' 
+              })
+            : client.billingDate,
+          duration: freshClient.packageType || freshClient.duration || client.duration,
+        };
+        setSelectedClient(updatedClient);
+      } else {
+        // Fallback to cached data if API fails
+        setSelectedClient(client);
+      }
+    } catch (error) {
+      console.error('Error fetching fresh client data:', error);
+      // Fallback to cached data if API fails
+      setSelectedClient(client);
+    }
     setIsDialogOpen(true);
   };
 
