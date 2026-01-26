@@ -97,10 +97,10 @@ const AllClients = () => {
               })
             : client.billingDate,
           duration: freshClient.packageType || freshClient.duration || client.duration,
-          // Include GymClients data
+          // Include GymClients data - explicitly set to null if not present
           bloodGroup: freshClient.bloodGroup || null,
-          amount: freshClient.packageAmount || freshClient.totalAmount || null,
-          packageAmount: freshClient.packageAmount || freshClient.totalAmount || null,
+          amount: (freshClient.packageAmount || freshClient.totalAmount) ? (freshClient.packageAmount || freshClient.totalAmount) : null,
+          packageAmount: (freshClient.packageAmount || freshClient.totalAmount) ? (freshClient.packageAmount || freshClient.totalAmount) : null,
           amountPaid: freshClient.amountPaid || null,
           pendingAmount: freshClient.pendingAmount || null,
           months: freshClient.months || null,
@@ -110,13 +110,25 @@ const AllClients = () => {
         };
         setSelectedClient(updatedClient);
       } else {
-        // Fallback to cached data if API fails
-        setSelectedClient(client);
+        // Fallback: clear bloodGroup and amount to show blank
+        const fallbackClient: any = {
+          ...client,
+          bloodGroup: null,
+          amount: null,
+          packageAmount: null,
+        };
+        setSelectedClient(fallbackClient);
       }
     } catch (error) {
       console.error('Error fetching fresh client data:', error);
-      // Fallback to cached data if API fails
-      setSelectedClient(client);
+      // Fallback: clear bloodGroup and amount to show blank
+      const fallbackClient: any = {
+        ...client,
+        bloodGroup: null,
+        amount: null,
+        packageAmount: null,
+      };
+      setSelectedClient(fallbackClient);
     }
     setIsDialogOpen(true);
   };
@@ -366,7 +378,7 @@ const AllClients = () => {
                         color: '#F9FAFB',
                         fontWeight: '500'
                       }}>
-                        {(selectedClient as any).amount || (selectedClient as any).packageAmount 
+                        {((selectedClient as any).amount && (selectedClient as any).amount > 0) || ((selectedClient as any).packageAmount && (selectedClient as any).packageAmount > 0)
                           ? `₹${((selectedClient as any).amount || (selectedClient as any).packageAmount || 0).toLocaleString('en-IN')}`
                           : ''}
                       </div>
