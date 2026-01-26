@@ -101,16 +101,17 @@ export const getGymClientByEmployeeId = async (employeeId: number): Promise<GymC
     return {
       employeeId: row.EmployeeId,
       employeeCodeInDevice: row.EmployeeCodeInDevice,
-      bloodGroup: row.BloodGroup,
-      months: row.Months,
-      trainer: row.Trainer,
-      packageType: row.PackageType,
-      totalAmount: row.TotalAmount ? parseFloat(row.TotalAmount) : undefined,
-      amountPaid: row.AmountPaid ? parseFloat(row.AmountPaid) : undefined,
-      pendingAmount: row.PendingAmount ? parseFloat(row.PendingAmount) : undefined,
+      // Return null for empty strings or null values
+      bloodGroup: (row.BloodGroup && row.BloodGroup.trim() !== '') ? row.BloodGroup : undefined,
+      months: row.Months || undefined,
+      trainer: (row.Trainer && row.Trainer.trim() !== '') ? row.Trainer : undefined,
+      packageType: (row.PackageType && row.PackageType.trim() !== '') ? row.PackageType : undefined,
+      totalAmount: (row.TotalAmount && parseFloat(row.TotalAmount) > 0) ? parseFloat(row.TotalAmount) : undefined,
+      amountPaid: (row.AmountPaid && parseFloat(row.AmountPaid) > 0) ? parseFloat(row.AmountPaid) : undefined,
+      pendingAmount: (row.PendingAmount !== null && row.PendingAmount !== undefined) ? parseFloat(row.PendingAmount) : undefined,
       remainingDate: row.RemainingDate ? new Date(row.RemainingDate) : undefined,
-      preferredTimings: row.PreferredTimings,
-      paymentMode: row.PaymentMode,
+      preferredTimings: (row.PreferredTimings && row.PreferredTimings.trim() !== '') ? row.PreferredTimings : undefined,
+      paymentMode: (row.PaymentMode && row.PaymentMode.trim() !== '') ? row.PaymentMode : undefined,
     };
   } catch (error: any) {
     // If table doesn't exist, return null (not an error)
@@ -259,8 +260,6 @@ export const syncGymClientsForAllEmployees = async (): Promise<{ created: number
         WHERE gc.EmployeeId IS NULL
           AND e.EmployeeName NOT LIKE 'del_%'
           AND LOWER(e.Status) NOT IN ('deleted', 'delete')
-          AND e.EmployeeCodeInDevice IS NOT NULL
-          AND e.EmployeeCodeInDevice != ''
       `);
     });
     
@@ -271,7 +270,7 @@ export const syncGymClientsForAllEmployees = async (): Promise<{ created: number
       try {
         await runQuery(async (request) => {
           request.input('EmployeeId', sql.Int, employee.EmployeeId);
-          request.input('EmployeeCodeInDevice', sql.NVarChar(50), employee.EmployeeCodeInDevice || String(employee.EmployeeId));
+          request.input('EmployeeCodeInDevice', sql.NVarChar(50), employee.EmployeeCodeInDevice || String(employee.EmployeeId) || '');
           
           return request.query(`
             IF NOT EXISTS (SELECT 1 FROM GymClients WHERE EmployeeId = @EmployeeId)

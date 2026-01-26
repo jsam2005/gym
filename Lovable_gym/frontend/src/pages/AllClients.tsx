@@ -80,6 +80,15 @@ const AllClients = () => {
       const response = await clientAPI.getById(String(client.id));
       if (response.data.success && response.data.client) {
         const freshClient = response.data.client;
+        
+        // Debug: Log the API response to see what we're getting
+        console.log('🔍 API Response for client:', {
+          id: freshClient.id,
+          bloodGroup: freshClient.bloodGroup,
+          packageAmount: freshClient.packageAmount,
+          totalAmount: freshClient.totalAmount,
+        });
+        
         // Transform to match Client interface
         const updatedClient: any = {
           id: freshClient.id || freshClient._id || client.id,
@@ -97,17 +106,28 @@ const AllClients = () => {
               })
             : client.billingDate,
           duration: freshClient.packageType || freshClient.duration || client.duration,
-          // Include GymClients data - explicitly set to null if not present
-          bloodGroup: freshClient.bloodGroup || null,
-          amount: (freshClient.packageAmount || freshClient.totalAmount) ? (freshClient.packageAmount || freshClient.totalAmount) : null,
-          packageAmount: (freshClient.packageAmount || freshClient.totalAmount) ? (freshClient.packageAmount || freshClient.totalAmount) : null,
-          amountPaid: freshClient.amountPaid || null,
-          pendingAmount: freshClient.pendingAmount || null,
+          // Include GymClients data - explicitly check for null/undefined/empty
+          bloodGroup: (freshClient.bloodGroup && freshClient.bloodGroup.trim() !== '') ? freshClient.bloodGroup : null,
+          amount: ((freshClient.packageAmount && freshClient.packageAmount > 0) || (freshClient.totalAmount && freshClient.totalAmount > 0)) 
+            ? (freshClient.packageAmount || freshClient.totalAmount) 
+            : null,
+          packageAmount: ((freshClient.packageAmount && freshClient.packageAmount > 0) || (freshClient.totalAmount && freshClient.totalAmount > 0)) 
+            ? (freshClient.packageAmount || freshClient.totalAmount) 
+            : null,
+          amountPaid: (freshClient.amountPaid && freshClient.amountPaid > 0) ? freshClient.amountPaid : null,
+          pendingAmount: (freshClient.pendingAmount !== undefined && freshClient.pendingAmount !== null) ? freshClient.pendingAmount : null,
           months: freshClient.months || null,
-          trainer: freshClient.trainer || null,
-          preferredTimings: freshClient.preferredTimings || null,
-          paymentMode: freshClient.paymentMode || null,
+          trainer: (freshClient.trainer && freshClient.trainer.trim() !== '') ? freshClient.trainer : null,
+          preferredTimings: (freshClient.preferredTimings && freshClient.preferredTimings.trim() !== '') ? freshClient.preferredTimings : null,
+          paymentMode: (freshClient.paymentMode && freshClient.paymentMode.trim() !== '') ? freshClient.paymentMode : null,
         };
+        
+        console.log('🔍 Updated client data:', {
+          bloodGroup: updatedClient.bloodGroup,
+          amount: updatedClient.amount,
+          packageAmount: updatedClient.packageAmount,
+        });
+        
         setSelectedClient(updatedClient);
       } else {
         // Fallback: clear bloodGroup and amount to show blank
@@ -362,7 +382,7 @@ const AllClients = () => {
                         color: '#F9FAFB',
                         fontWeight: '500'
                       }}>
-                        {(selectedClient as any).bloodGroup || ''}
+                        {((selectedClient as any).bloodGroup && (selectedClient as any).bloodGroup.trim() !== '') ? (selectedClient as any).bloodGroup : ''}
                       </div>
                     </div>
                     <div>

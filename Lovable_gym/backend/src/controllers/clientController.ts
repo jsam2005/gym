@@ -426,16 +426,25 @@ export const getClientById = async (req: Request, res: Response): Promise<void> 
         const gymClient = await getGymClientByEmployeeId(employeeId);
         if (gymClient) {
           // Merge GymClients data into client response
-          (client as any).bloodGroup = gymClient.bloodGroup || null;
-          (client as any).packageAmount = gymClient.totalAmount || null;
-          (client as any).amountPaid = gymClient.amountPaid || null;
-          (client as any).pendingAmount = gymClient.pendingAmount || null;
-          (client as any).packageType = gymClient.packageType || null;
+          // Treat empty strings as null
+          (client as any).bloodGroup = (gymClient.bloodGroup && gymClient.bloodGroup.trim() !== '') ? gymClient.bloodGroup : null;
+          (client as any).packageAmount = (gymClient.totalAmount && gymClient.totalAmount > 0) ? gymClient.totalAmount : null;
+          (client as any).totalAmount = (gymClient.totalAmount && gymClient.totalAmount > 0) ? gymClient.totalAmount : null;
+          (client as any).amountPaid = (gymClient.amountPaid && gymClient.amountPaid > 0) ? gymClient.amountPaid : null;
+          (client as any).pendingAmount = (gymClient.pendingAmount !== undefined && gymClient.pendingAmount !== null) ? gymClient.pendingAmount : null;
+          (client as any).packageType = (gymClient.packageType && gymClient.packageType.trim() !== '') ? gymClient.packageType : null;
           (client as any).months = gymClient.months || null;
-          (client as any).trainer = gymClient.trainer || null;
-          (client as any).preferredTimings = gymClient.preferredTimings || null;
-          (client as any).paymentMode = gymClient.paymentMode || null;
+          (client as any).trainer = (gymClient.trainer && gymClient.trainer.trim() !== '') ? gymClient.trainer : null;
+          (client as any).preferredTimings = (gymClient.preferredTimings && gymClient.preferredTimings.trim() !== '') ? gymClient.preferredTimings : null;
+          (client as any).paymentMode = (gymClient.paymentMode && gymClient.paymentMode.trim() !== '') ? gymClient.paymentMode : null;
           (client as any).remainingDate = gymClient.remainingDate || null;
+        } else {
+          // Explicitly set to null if no gym client record exists
+          (client as any).bloodGroup = null;
+          (client as any).packageAmount = null;
+          (client as any).totalAmount = null;
+          (client as any).amountPaid = null;
+          (client as any).pendingAmount = null;
         }
       }
     } catch (gymClientError: any) {
