@@ -102,7 +102,7 @@ const Billing = () => {
         });
       }
 
-      // Merge billing data with client data to get amount and pendingAmount
+        // Merge billing data with client data to get amount and pendingAmount
       let mergedClients: any[] = [];
       if (clientsRes.data.success) {
         mergedClients = (clientsRes.data.data || []).map((billingClient: any) => {

@@ -1,10 +1,9 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { PageHeader } from "@/components/PageHeader";
 import { GymTable, Client } from "@/components/GymTable";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { clientAPI } from "@/lib/api";
-import { transformClientList } from "@/utils/clientTransform";
 
 const ActiveClients = () => {
   const navigate = useNavigate();
@@ -14,41 +13,42 @@ const ActiveClients = () => {
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-  const fetchActiveClients = useCallback(async () => {
-    try {
-      setLoading(true);
-      const response = await clientAPI.getActive();
-      if (response.data.success) {
-        const transformed = transformClientList(response.data.clients);
-        setClients(transformed);
-      } else {
+  // Fetch active clients from API
+  useEffect(() => {
+    const fetchActiveClients = async () => {
+      try {
+        setLoading(true);
+        const response = await clientAPI.getActive();
+        if (response.data.success) {
+          // Transform API data to match the expected format
+          const transformedClients = response.data.clients.map((client: any) => ({
+            id: client._id,
+            name: `${client.firstName} ${client.lastName}`,
+            contact: client.phone,
+            status: client.status,
+            billingDate: new Date(client.packageStartDate).toLocaleDateString('en-GB', { 
+              day: 'numeric', 
+              month: 'long', 
+              year: 'numeric' 
+            }),
+            duration: client.packageType
+          }));
+          setClients(transformedClients);
+        }
+      } catch (error) {
+        console.error('Error fetching active clients:', error);
         setClients([]);
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      console.error('Error fetching active clients:', error);
-      setClients([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchActiveClients();
-  }, [fetchActiveClients]);
-
-  useEffect(() => {
-    const handleClientUpdate = () => {
-      fetchActiveClients();
     };
-    
-    window.addEventListener('clientUpdated', handleClientUpdate);
-    return () => window.removeEventListener('clientUpdated', handleClientUpdate);
-  }, [fetchActiveClients]);
+
+    fetchActiveClients();
+  }, []);
 
   const filteredClients = clients.filter(client =>
     client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    client.contact.includes(searchTerm) ||
-    String(client.deviceId ?? client.esslUserId ?? client.id).includes(searchTerm)
+    client.contact.includes(searchTerm)
   );
 
   const handleView = (client: Client) => {
@@ -56,18 +56,22 @@ const ActiveClients = () => {
     setIsDialogOpen(true);
   };
 
+  const handleDelete = (client: Client) => {
+    if (confirm(`Are you sure you want to delete ${client.name}?`)) {
+      console.log("Delete client:", client);
+    }
+  };
+
   return (
-    <div className="w-full p-4 flex justify-center">
-      <div className="w-full max-w-7xl">
+    <div className="p-8">
       <PageHeader 
         title="Active Clients List" 
         searchPlaceholder="Search active clients..."
         onSearch={setSearchTerm}
-        // Add Client button hidden - clients are added via device and fetched via middleware
-        // actionButton={{
-        //   label: "Add New Client",
-        //   onClick: () => navigate("/clients/add")
-        // }}
+        actionButton={{
+          label: "Add New Client",
+          onClick: () => navigate("/clients/add")
+        }}
       />
       
       {loading ? (
@@ -78,12 +82,13 @@ const ActiveClients = () => {
         <GymTable 
           clients={filteredClients}
           onView={handleView}
+          onDelete={handleDelete}
         />
       )}
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent 
-          className="w-full" 
+          className="max-w-4xl" 
           style={{
             backgroundColor: '#1F2937',
             borderRadius: '16px',
@@ -274,14 +279,14 @@ const ActiveClients = () => {
                     <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
                       <span style={{color: '#D1D5DB', fontSize: '14px', fontWeight: '500'}}>Status</span>
                       <div style={{
-                        backgroundColor: selectedClient.status === 'active' ? '#10B981' : selectedClient.status === 'suspended' ? '#F59E0B' : '#EF4444',
+                        backgroundColor: selectedClient.status === 'active' ? '#10B981' : '#EF4444',
                         color: 'white',
                         padding: '6px 12px',
                         borderRadius: '6px',
                         fontSize: '14px',
                         fontWeight: '500'
                       }}>
-                        {selectedClient.status === 'active' ? 'Active' : selectedClient.status === 'suspended' ? 'Suspended' : 'Inactive'}
+                        {selectedClient.status === 'active' ? 'Active' : 'Inactive'}
                       </div>
                     </div>
                   </div>
@@ -319,7 +324,6 @@ const ActiveClients = () => {
           )}
         </DialogContent>
       </Dialog>
-      </div>
     </div>
   );
 };

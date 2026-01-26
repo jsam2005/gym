@@ -38,8 +38,6 @@ export interface ClientEntity {
   photo?: string | null;
   createdAt: string;
   updatedAt: string;
-  role?: 'client' | 'trainer';
-  isTrainer?: boolean;
 }
 
 export interface AccessLogEntity {

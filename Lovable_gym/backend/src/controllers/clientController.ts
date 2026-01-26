@@ -161,7 +161,6 @@ export const createClient = async (req: Request, res: Response): Promise<void> =
     const hasAdditionalInfo = (req.body as any).bloodGroup || 
                               (req.body as any).months || 
                               (req.body as any).trainer || 
-                              (req.body as any).isTrainer !== undefined ||
                               normalizedPayload.packageType ||
                               normalizedPayload.packageAmount ||
                               normalizedPayload.amountPaid ||
@@ -183,7 +182,6 @@ export const createClient = async (req: Request, res: Response): Promise<void> =
           remainingDate: normalizedPayload.packageEndDate ? new Date(normalizedPayload.packageEndDate) : undefined,
           preferredTimings: (req.body as any).timings || undefined,
           paymentMode: (req.body as any).paymentMode || undefined,
-          isTrainer: (req.body as any).isTrainer === true || (req.body as any).role === 'trainer',
         });
         console.log(`✅ Gym client record created for EmployeeId=${employeeId}`);
       } catch (gymClientError: any) {
@@ -309,7 +307,7 @@ export const createClient = async (req: Request, res: Response): Promise<void> =
  */
 export const getAllClients = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { status, search, page = 1, limit = 50, role } = req.query;
+    const { status, search, page = 1, limit = 50 } = req.query;
 
     // Use local API if enabled
     if (localApiService.isApiEnabled()) {
@@ -317,29 +315,22 @@ export const getAllClients = async (req: Request, res: Response): Promise<void> 
         console.log('📡 Using local API to fetch clients');
         const clients = await localApiService.getClients({ status: status as string });
         console.log(`✅ Local API returned ${clients.length} clients`);
-
-        const normalizedRole = (role as string | undefined)?.toLowerCase();
-        const filteredClients = normalizedRole === 'trainer'
-          ? clients.filter((client: any) => client?.isTrainer || client?.role === 'trainer')
-          : normalizedRole === 'client'
-            ? clients.filter((client: any) => !(client?.isTrainer || client?.role === 'trainer'))
-            : clients;
         
         // Simple pagination for local API
         const pageNum = Number(page);
         const limitNum = Number(limit);
         const start = (pageNum - 1) * limitNum;
         const end = start + limitNum;
-        const paginatedClients = filteredClients.slice(start, end);
+        const paginatedClients = clients.slice(start, end);
 
         res.json({
           success: true,
           clients: paginatedClients,
           pagination: {
-            total: filteredClients.length,
+            total: clients.length,
             page: pageNum,
             limit: limitNum,
-            pages: Math.ceil(filteredClients.length / limitNum),
+            pages: Math.ceil(clients.length / limitNum),
           },
         });
         return;
@@ -372,7 +363,6 @@ export const getAllClients = async (req: Request, res: Response): Promise<void> 
       search: search as string | undefined,
       page: Number(page),
       limit: Number(limit),
-      role: role as string | undefined,
     });
 
     res.json({
@@ -494,7 +484,7 @@ export const updateClient = async (req: Request, res: Response): Promise<void> =
 
     // Update GymClients table if additional fields are provided
     const hasGymClientUpdates = Object.keys(updates).some(key => 
-      ['bloodGroup', 'months', 'packageType', 'packageAmount', 'totalAmount', 'amountPaid', 'pendingAmount', 'remainingDate', 'billingDate', 'timings', 'paymentMode', 'role', 'isTrainer'].includes(key)
+      ['bloodGroup', 'months', 'packageType', 'totalAmount', 'amountPaid', 'pendingAmount', 'remainingDate', 'billingDate', 'timings', 'paymentMode'].includes(key)
     );
 
     if (hasGymClientUpdates && client.id) {
@@ -513,9 +503,6 @@ export const updateClient = async (req: Request, res: Response): Promise<void> =
             billingDate: (updates as any).billingDate ? new Date((updates as any).billingDate) : undefined,
             preferredTimings: (updates as any).timings,
             paymentMode: (updates as any).paymentMode,
-            isTrainer: typeof updates.isTrainer === 'boolean'
-              ? updates.isTrainer
-              : (updates.role === 'trainer' ? true : updates.role === 'client' ? false : undefined),
           });
         }
       } catch (gymClientError: any) {

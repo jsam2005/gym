@@ -1,26 +1,23 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { RefreshCw, Search } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { GymTable, Client } from "@/components/GymTable";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { useToast } from "@/components/ui/use-toast";
 import { clientAPI } from "@/lib/api";
-import { transformClientList } from "@/utils/clientTransform";
 
 const AllClients = () => {
+  console.log("AllClients component is rendering");
   const navigate = useNavigate();
-  const location = useLocation();
-  const { toast } = useToast();
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [deleting, setDeleting] = useState<string | null>(null);
+
   // Fetch clients from API - extracted to be reusable
   const fetchClients = async (isRefresh = false) => {
       try {
@@ -30,12 +27,30 @@ const AllClients = () => {
         setLoading(true);
       }
         const response = await clientAPI.getAll();
-        if (response.data && response.data.success && Array.isArray(response.data.clients)) {
-          const transformedClients = transformClientList(response.data.clients);
+        if (response.data.success) {
+          // Transform API data to match the expected format
+        // Transform and deduplicate clients
+        const transformedClients = response.data.clients
+          .map((client: any, index: number) => ({
+            id: client.id || client._id || `client-${index}`, // EmployeeId from database (unique)
+            deviceId: client.esslUserId || client.employeeCodeInDevice || '', // Device ID (EmployeeCodeInDevice)
+            name: `${client.firstName || ''} ${client.lastName || ''}`.trim() || 'Unknown',
+            contact: client.phone || '',
+            status: client.status || 'inactive',
+            billingDate: client.packageStartDate 
+              ? new Date(client.packageStartDate).toLocaleDateString('en-GB', { 
+              day: 'numeric', 
+              month: 'long', 
+              year: 'numeric' 
+                })
+              : 'N/A',
+            duration: client.packageType || 'N/A'
+          }))
+          // Remove duplicates based on EmployeeId (id field)
+          .filter((client: any, index: number, self: any[]) => 
+            index === self.findIndex((c: any) => c.id === client.id)
+          );
           setClients(transformedClients);
-        } else {
-          console.warn('Invalid API response:', response.data);
-          setClients([]);
         }
       } catch (error) {
         console.error('Error fetching clients:', error);
@@ -54,29 +69,9 @@ const AllClients = () => {
     fetchClients(false);
   }, []);
 
-  // Refetch when navigating back from edit page
-  useEffect(() => {
-    if (location.state?.refresh) {
-      fetchClients(false);
-      // Clear the refresh flag
-      window.history.replaceState({}, document.title);
-    }
-  }, [location.state]);
-
-  // Listen for client update events to refresh data
-  useEffect(() => {
-    const handleClientUpdate = () => {
-      fetchClients(false);
-    };
-    
-    window.addEventListener('clientUpdated', handleClientUpdate);
-    return () => window.removeEventListener('clientUpdated', handleClientUpdate);
-  }, []);
-
   const filteredClients = clients.filter(client =>
     client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    client.contact.includes(searchTerm) ||
-    String(client.deviceId ?? client.esslUserId ?? client.id).includes(searchTerm)
+    client.contact.includes(searchTerm)
   );
 
   const handleView = (client: Client) => {
@@ -84,51 +79,23 @@ const AllClients = () => {
     setIsDialogOpen(true);
   };
 
-  const handleEdit = (client: Client) => {
-    navigate(`/clients/edit/${client.id}`);
-  };
-
-  const handleDelete = async (client: Client) => {
-    if (!confirm(`Are you sure you want to delete ${client.name}? This will delete the client from the database and the ESSL device.`)) {
-      return;
-    }
-
-    setDeleting(String(client.id));
-    try {
-      await clientAPI.delete(String(client.id));
-      toast({
-        title: "Client Deleted",
-        description: `${client.name} has been deleted successfully from database and device.`,
-      });
-      // Refresh the list
-      fetchClients(true);
-    } catch (error: any) {
-      console.error("Error deleting client:", error);
-      toast({
-        title: "Error",
-        description: error.response?.data?.message || "Failed to delete client",
-        variant: "destructive"
-      });
-    } finally {
-      setDeleting(null);
+  const handleDelete = (client: Client) => {
+    if (confirm(`Are you sure you want to delete ${client.name}?`)) {
+      setClients(clients.filter(c => c.id !== client.id));
     }
   };
 
-  // Sync button removed - clients are synced via middleware
-
-  // Add Client feature hidden - clients are added via device and fetched via middleware
-  // const handleAddClient = () => {
-  //   navigate("/clients/add");
-  // };
+  const handleAddClient = () => {
+    navigate("/clients/add");
+  };
 
   const handleRefresh = () => {
     fetchClients(true);
   };
 
   return (
-    <div className="w-full p-4 flex justify-center">
-      <div className="w-full max-w-7xl">
-        <div className="flex items-center justify-between mb-8">
+    <div className="p-8">
+      <div className="flex items-center justify-between mb-8">
         <h1 className="text-3xl font-bold text-foreground">All Clients List</h1>
         
         <div className="flex items-center gap-4">
@@ -151,13 +118,12 @@ const AllClients = () => {
             {refreshing ? 'Refreshing...' : 'Refresh'}
           </Button>
           
-          {/* Add Client button hidden - clients are added via device and fetched via middleware */}
-          {/* <Button 
+          <Button 
             onClick={handleAddClient}
             className="bg-sidebar-active hover:bg-sidebar-active/90"
           >
             Add New Client
-          </Button> */}
+          </Button>
         </div>
       </div>
       
@@ -166,27 +132,22 @@ const AllClients = () => {
           <div className="text-gray-400">Loading clients...</div>
         </div>
       ) : (
-          <GymTable
-            clients={filteredClients}
-            onView={handleView}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-            deleting={deleting}
-          />
+        <GymTable 
+          clients={filteredClients}
+          onView={handleView}
+          onDelete={handleDelete}
+        />
       )}
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent 
-          className="w-full max-w-4xl" 
+          className="max-w-4xl" 
           style={{
             backgroundColor: '#1F2937',
             borderRadius: '16px',
             boxShadow: '0 10px 25px rgba(0, 0, 0, 0.3)',
             border: '1px solid #374151',
-            color: '#F9FAFB',
-            maxWidth: '900px',
-            width: 'auto',
-            padding: '0'
+            color: '#F9FAFB'
           }}
         >
           <DialogHeader>
@@ -201,8 +162,8 @@ const AllClients = () => {
             </DialogTitle>
           </DialogHeader>
           {selectedClient && (
-            <div style={{padding: '30px', width: '100%', boxSizing: 'border-box'}}>
-              <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '40px', marginBottom: '40px', width: '100%'}}>
+            <div style={{padding: '30px'}}>
+              <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '40px', marginBottom: '40px'}}>
                 <div style={{
                   backgroundColor: '#374151',
                   padding: '24px',
@@ -371,14 +332,14 @@ const AllClients = () => {
                     <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
                       <span style={{color: '#D1D5DB', fontSize: '14px', fontWeight: '500'}}>Status</span>
                       <div style={{
-                        backgroundColor: selectedClient.status === 'active' ? '#10B981' : selectedClient.status === 'suspended' ? '#F59E0B' : '#EF4444',
+                        backgroundColor: selectedClient.status === 'active' ? '#10B981' : '#EF4444',
                         color: 'white',
                         padding: '6px 12px',
                         borderRadius: '6px',
                         fontSize: '14px',
                         fontWeight: '500'
                       }}>
-                        {selectedClient.status === 'active' ? 'Active' : selectedClient.status === 'suspended' ? 'Suspended' : 'Inactive'}
+                        {selectedClient.status === 'active' ? 'Active' : 'Inactive'}
                       </div>
                     </div>
                   </div>
@@ -416,7 +377,6 @@ const AllClients = () => {
           )}
         </DialogContent>
       </Dialog>
-      </div>
     </div>
   );
 };

@@ -43,15 +43,15 @@ export const getProfileSettings = async (req: Request, res: Response): Promise<v
     
     if (!profile) {
       try {
-        const defaultPassword = await bcrypt.hash('admin123', 10);
-        profile = await createProfile({
+      const defaultPassword = await bcrypt.hash('admin123', 10);
+      profile = await createProfile({
           gymName: defaultProfileData.gymName,
           gymAddress: defaultProfileData.gymAddress,
           ownerName: defaultProfileData.ownerName,
           ownerPhone: defaultProfileData.ownerPhone,
           additionalContact: defaultProfileData.additionalContact,
           photo: defaultProfileData.photo,
-          passwordHash: defaultPassword,
+        passwordHash: defaultPassword,
           email: null,
         });
       } catch (createError: any) {
@@ -67,11 +67,11 @@ export const getProfileSettings = async (req: Request, res: Response): Promise<v
 
     if (profile) {
       try {
-        const { passwordHash, ...profileData } = profile;
-        res.json({
-          success: true,
-          data: profileData,
-        });
+    const { passwordHash, ...profileData } = profile;
+    res.json({
+      success: true,
+      data: profileData,
+    });
       } catch (mapError: any) {
         console.error('❌ Error mapping profile data:', mapError.message);
         // Return default data if mapping fails

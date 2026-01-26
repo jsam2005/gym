@@ -9,8 +9,6 @@ import AllClients from "./pages/AllClients";
 import ActiveClients from "./pages/ActiveClients";
 import InactiveClients from "./pages/InactiveClients";
 import AddClient from "./pages/AddClient";
-import EditClient from "./pages/EditClient";
-import Trainers from "./pages/Trainers";
 import Packages from "./pages/Packages";
 import Billing from "./pages/Billing";
 import Profile from "./pages/Profile";
@@ -30,18 +28,15 @@ const App = () => (
           v7_relativeSplatPath: true
         }}
       >
-        <div className="flex min-h-screen w-full relative">
+        <div className="flex min-h-screen w-full">
           <GymSidebar />
-          <main className="flex-1 overflow-auto bg-transparent text-foreground main-content" style={{ marginLeft: '256px', padding: 0, width: 'calc(100% - 256px)' }}>
+          <main className="flex-1 overflow-auto bg-transparent text-foreground main-content">
             <Routes>
               <Route path="/" element={<Dashboard />} />
               <Route path="/clients" element={<AllClients />} />
               <Route path="/clients/active" element={<ActiveClients />} />
               <Route path="/clients/inactive" element={<InactiveClients />} />
-              <Route path="/clients/trainers" element={<Trainers />} />
-              {/* Add Client route hidden - clients are added via device and fetched via middleware */}
               <Route path="/clients/add" element={<AddClient />} />
-              <Route path="/clients/edit/:id" element={<EditClient />} />
               <Route path="/packages" element={<Packages />} />
               <Route path="/billing" element={<Billing />} />
               <Route path="/biometric" element={<BiometricAccess />} />
@@ -56,3 +51,4 @@ const App = () => (
 );
 
 export default App;
+

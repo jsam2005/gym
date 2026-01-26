@@ -139,3 +139,9 @@ Get-Content logs\frontend.log -Tail 10
 
 
 
+
+
+
+
+
+

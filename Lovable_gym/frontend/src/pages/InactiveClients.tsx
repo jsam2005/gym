@@ -4,7 +4,6 @@ import { PageHeader } from "@/components/PageHeader";
 import { GymTable, Client } from "@/components/GymTable";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { clientAPI } from "@/lib/api";
-import { transformClientList } from "@/utils/clientTransform";
 
 const InactiveClients = () => {
   const navigate = useNavigate();
@@ -20,10 +19,28 @@ const InactiveClients = () => {
       setLoading(true);
       const response = await clientAPI.getInactive();
       if (response.data.success) {
-        const transformedClients = transformClientList(response.data.clients);
+        // Transform API data to match the expected format
+        const transformedClients = (Array.isArray(response.data.clients) ? response.data.clients : []).map((client: any) => ({
+          id: client._id,
+          name: `${client.firstName} ${client.lastName}`,
+          contact: client.phone,
+          status: client.status,
+          billingDate: (client as any).billingDate 
+            ? new Date((client as any).billingDate).toLocaleDateString('en-GB', { 
+                day: 'numeric', 
+                month: 'long', 
+                year: 'numeric' 
+              })
+            : client.packageStartDate 
+              ? new Date(client.packageStartDate).toLocaleDateString('en-GB', { 
+                  day: 'numeric', 
+                  month: 'long', 
+                  year: 'numeric' 
+                })
+              : 'N/A',
+          duration: client.packageType
+        }));
         setClients(transformedClients);
-      } else {
-        setClients([]);
       }
     } catch (error) {
       console.error('Error fetching inactive clients:', error);
@@ -50,13 +67,18 @@ const InactiveClients = () => {
 
   const filteredClients = clients.filter(client =>
     client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    client.contact.includes(searchTerm) ||
-    String(client.deviceId ?? client.esslUserId ?? client.id).includes(searchTerm)
+    client.contact.includes(searchTerm)
   );
 
   const handleView = (client: Client) => {
     setSelectedClient(client);
     setIsDialogOpen(true);
+  };
+
+  const handleDelete = (client: Client) => {
+    if (confirm(`Are you sure you want to delete ${client.name}?`)) {
+      console.log("Delete client:", client);
+    }
   };
 
   return (
@@ -81,6 +103,7 @@ const InactiveClients = () => {
         <GymTable 
           clients={filteredClients}
           onView={handleView}
+          onDelete={handleDelete}
         />
       )}
 
@@ -277,14 +300,14 @@ const InactiveClients = () => {
                     <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
                       <span style={{color: '#D1D5DB', fontSize: '14px', fontWeight: '500'}}>Status</span>
                       <div style={{
-                        backgroundColor: selectedClient.status === 'active' ? '#10B981' : selectedClient.status === 'suspended' ? '#F59E0B' : '#EF4444',
+                        backgroundColor: selectedClient.status === 'active' ? '#10B981' : '#EF4444',
                         color: 'white',
                         padding: '6px 12px',
                         borderRadius: '6px',
                         fontSize: '14px',
                         fontWeight: '500'
                       }}>
-                        {selectedClient.status === 'active' ? 'Active' : selectedClient.status === 'suspended' ? 'Suspended' : 'Inactive'}
+                        {selectedClient.status === 'active' ? 'Active' : 'Inactive'}
                       </div>
                     </div>
                   </div>

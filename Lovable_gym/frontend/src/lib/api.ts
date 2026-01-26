@@ -1,13 +1,19 @@
 import axios from 'axios';
 
 // API URL configuration
-// Local development only - connects to localhost backend
+// In production (Vercel): Use VITE_API_URL env var (set in Vercel dashboard)
+// In development: Use localhost
+// Try multiple backend ports in development
 const getBackendUrl = () => {
-  // Use environment variable if set, otherwise default to localhost:5001
   if (import.meta.env.VITE_API_URL) {
     return import.meta.env.VITE_API_URL;
   }
-  // Default to localhost:5001 for local development
+  if (import.meta.env.MODE === 'production' || import.meta.env.PROD) {
+    return '/api';
+  }
+  // In development, try common backend ports
+  const ports = [5001, 5002, 5000];
+  // Default to 5001, but can be overridden
   return `http://localhost:${import.meta.env.VITE_BACKEND_PORT || '5001'}/api`;
 };
 
@@ -57,7 +63,6 @@ export const clientAPI = {
   getAll: (params?: any) => api.get('/clients', { params }),
   getActive: () => api.get('/clients', { params: { status: 'active' } }),
   getInactive: () => api.get('/clients', { params: { status: 'inactive' } }),
-  getTrainers: () => api.get('/clients', { params: { role: 'trainer', limit: 1000 } }),
   getById: (id: string) => api.get(`/clients/${id}`),
   getStats: () => api.get('/clients/stats'),
   create: (data: any) => api.post('/clients', data),

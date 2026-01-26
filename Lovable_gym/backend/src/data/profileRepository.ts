@@ -210,15 +210,15 @@ const getPrimaryProfileRow = async () => {
 
 export const getProfile = async (): Promise<ProfileEntity | null> => {
   try {
-    await ensureTable();
+  await ensureTable();
   } catch (error: any) {
     console.error('❌ Error ensuring table in getProfile:', error.message);
     // Continue even if table setup fails - might be a column issue
   }
   
   try {
-    const row = await getPrimaryProfileRow();
-    return row ? mapProfile(row) : null;
+  const row = await getPrimaryProfileRow();
+  return row ? mapProfile(row) : null;
   } catch (error: any) {
     console.error('❌ Error fetching profile row:', error.message);
     // If it's a column error, return null so a new profile can be created
@@ -240,7 +240,7 @@ export const createProfile = async (data: {
   email?: string | null;
 }): Promise<ProfileEntity> => {
   try {
-    await ensureTable();
+  await ensureTable();
   } catch (error: any) {
     console.error('❌ Error ensuring table in createProfile:', error.message);
     // Continue - table might already exist
@@ -334,35 +334,35 @@ export const createProfile = async (data: {
     if (error.message?.includes('Invalid column name') || error.message?.includes('column') || error.message?.includes('NULL')) {
       console.log('⚠️  Retrying profile creation with minimal columns...');
       try {
-        const result = await runQuery((request) => {
-          request.input('GymName', sql.NVarChar(200), data.gymName);
-          request.input('GymAddress', sql.NVarChar(sql.MAX), data.gymAddress);
-          request.input('OwnerName', sql.NVarChar(150), data.ownerName);
-          request.input('OwnerPhone', sql.NVarChar(50), data.ownerPhone);
-          request.input('AdditionalContact', sql.NVarChar(50), data.additionalContact || null);
-          request.input('Photo', sql.NVarChar(500), data.photo || null);
-          request.input('PasswordHash', sql.NVarChar(255), data.passwordHash);
+  const result = await runQuery((request) => {
+    request.input('GymName', sql.NVarChar(200), data.gymName);
+    request.input('GymAddress', sql.NVarChar(sql.MAX), data.gymAddress);
+    request.input('OwnerName', sql.NVarChar(150), data.ownerName);
+    request.input('OwnerPhone', sql.NVarChar(50), data.ownerPhone);
+    request.input('AdditionalContact', sql.NVarChar(50), data.additionalContact || null);
+    request.input('Photo', sql.NVarChar(500), data.photo || null);
+    request.input('PasswordHash', sql.NVarChar(255), data.passwordHash);
 
-          return request.query(`
-            INSERT INTO Profile (
-              Id, GymName, GymAddress, OwnerName, OwnerPhone, AdditionalContact, Photo, PasswordHash, CreatedAt, UpdatedAt
-            )
-            OUTPUT INSERTED.*
-            VALUES (
-              NEWID(),
-              @GymName,
-              @GymAddress,
-              @OwnerName,
-              @OwnerPhone,
-              @AdditionalContact,
-              @Photo,
-              @PasswordHash,
-              SYSUTCDATETIME(),
-              SYSUTCDATETIME()
-            )
-          `);
-        });
-        return mapProfile(result.recordset[0]);
+    return request.query(`
+      INSERT INTO Profile (
+        Id, GymName, GymAddress, OwnerName, OwnerPhone, AdditionalContact, Photo, PasswordHash, CreatedAt, UpdatedAt
+      )
+      OUTPUT INSERTED.*
+      VALUES (
+        NEWID(),
+        @GymName,
+        @GymAddress,
+        @OwnerName,
+        @OwnerPhone,
+        @AdditionalContact,
+        @Photo,
+        @PasswordHash,
+        SYSUTCDATETIME(),
+        SYSUTCDATETIME()
+      )
+    `);
+  });
+  return mapProfile(result.recordset[0]);
       } catch (retryError: any) {
         console.error('❌ Retry also failed:', retryError.message);
         throw retryError;
