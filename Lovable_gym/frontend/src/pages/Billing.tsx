@@ -853,7 +853,7 @@ const Billing = () => {
                         fontWeight: '500',
                         textAlign: 'left'
                       }}>
-                        {(selectedClient.amount || selectedClient.totalAmount || selectedClient.packageAmount)
+                        {((selectedClient.amount || selectedClient.totalAmount || selectedClient.packageAmount) && (selectedClient.amount || selectedClient.totalAmount || selectedClient.packageAmount) > 0)
                           ? `₹${((selectedClient.amount || selectedClient.totalAmount || selectedClient.packageAmount || 0)).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
                           : ''}
                       </div>
