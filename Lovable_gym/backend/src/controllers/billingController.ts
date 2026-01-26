@@ -74,11 +74,11 @@ export const getBillingClients = async (req: Request, res: Response): Promise<vo
           gc.CreatedAt as BillingDate,
           gc.UpdatedAt as LastUpdated
         FROM Employees e
-        INNER JOIN GymClients gc ON e.EmployeeId = gc.EmployeeId
+        LEFT JOIN GymClients gc ON e.EmployeeId = gc.EmployeeId
         WHERE e.EmployeeName NOT LIKE 'del_%'
           AND LOWER(e.Status) NOT IN ('deleted', 'delete')
-          AND (gc.TotalAmount IS NOT NULL OR gc.AmountPaid IS NOT NULL OR gc.PendingAmount IS NOT NULL)
-        ORDER BY gc.CreatedAt DESC
+        ORDER BY 
+          CASE WHEN gc.CreatedAt IS NOT NULL THEN gc.CreatedAt ELSE e.DOJ END DESC
       `);
     } catch (queryError: any) {
       // If query fails (e.g., table structure issue), return empty array
@@ -107,7 +107,7 @@ export const getBillingClients = async (req: Request, res: Response): Promise<vo
       const amountPaid = parseFloat(row.AmountPaid || 0);
       const pendingAmount = row.PendingAmount !== null && row.PendingAmount !== undefined 
         ? parseFloat(row.PendingAmount) 
-        : (totalAmount - amountPaid);
+        : (totalAmount > 0 ? (totalAmount - amountPaid) : 0);
 
       return {
         id: row.EmployeeId,
@@ -227,17 +227,18 @@ export const getPendingAndOverdueClients = async (req: Request, res: Response): 
             gc.RemainingDate,
             gc.PackageType,
             CASE 
-              WHEN gc.RemainingDate < @Now THEN 'overdue'
-              ELSE 'pending'
+              WHEN gc.RemainingDate IS NOT NULL AND gc.RemainingDate < @Now THEN 'overdue'
+              WHEN gc.PendingAmount IS NOT NULL AND gc.PendingAmount > 0 THEN 'pending'
+              ELSE 'none'
             END as status
           FROM Employees e
-          INNER JOIN GymClients gc ON e.EmployeeId = gc.EmployeeId
+          LEFT JOIN GymClients gc ON e.EmployeeId = gc.EmployeeId
           WHERE e.EmployeeName NOT LIKE 'del_%'
             AND LOWER(e.Status) NOT IN ('deleted', 'delete')
             AND gc.PendingAmount IS NOT NULL
             AND gc.PendingAmount > 0
           ORDER BY 
-            CASE WHEN gc.RemainingDate < @Now THEN 0 ELSE 1 END,
+            CASE WHEN gc.RemainingDate IS NOT NULL AND gc.RemainingDate < @Now THEN 0 ELSE 1 END,
             gc.RemainingDate ASC
         `);
     } catch (queryError: any) {
@@ -357,16 +358,17 @@ export const getPaymentHistory = async (req: Request, res: Response): Promise<vo
           gc.PaymentMode,
           gc.CreatedAt as PaymentDate,
           CASE 
-            WHEN gc.PendingAmount > 0 THEN 'pending'
+            WHEN gc.PendingAmount IS NOT NULL AND gc.PendingAmount > 0 THEN 'pending'
             ELSE 'completed'
           END as status
         FROM Employees e
-        INNER JOIN GymClients gc ON e.EmployeeId = gc.EmployeeId
+        LEFT JOIN GymClients gc ON e.EmployeeId = gc.EmployeeId
         WHERE e.EmployeeName NOT LIKE 'del_%'
           AND LOWER(e.Status) NOT IN ('deleted', 'delete')
           AND gc.AmountPaid IS NOT NULL
           AND gc.AmountPaid > 0
-        ORDER BY gc.CreatedAt DESC
+        ORDER BY 
+          CASE WHEN gc.CreatedAt IS NOT NULL THEN gc.CreatedAt ELSE e.DOJ END DESC
       `);
     } catch (queryError: any) {
       console.warn('⚠️ Query failed, returning empty data:', queryError.message);
@@ -463,11 +465,12 @@ export const getUpcomingPayments = async (req: Request, res: Response): Promise<
             gc.PendingAmount,
             gc.RemainingDate
         FROM Employees e
-        INNER JOIN GymClients gc ON e.EmployeeId = gc.EmployeeId
+        LEFT JOIN GymClients gc ON e.EmployeeId = gc.EmployeeId
         WHERE e.EmployeeName NOT LIKE 'del_%'
           AND LOWER(e.Status) NOT IN ('deleted', 'delete')
           AND gc.PendingAmount IS NOT NULL
           AND gc.PendingAmount > 0
+          AND gc.RemainingDate IS NOT NULL
           AND gc.RemainingDate >= @Now
         ORDER BY gc.RemainingDate ASC
       `);
@@ -573,12 +576,12 @@ export const getBillingSummary = async (req: Request, res: Response): Promise<vo
         .query(`
           SELECT 
             COUNT(*) as totalBillings,
-            ISNULL(SUM(TotalAmount), 0) as totalAmount,
-            ISNULL(SUM(PendingAmount), 0) as pendingAmount,
-            ISNULL(SUM(AmountPaid), 0) as totalPaid,
-            ISNULL(SUM(CASE WHEN CreatedAt >= @StartOfMonth THEN AmountPaid ELSE 0 END), 0) as thisMonthCollections
-          FROM GymClients gc
-          INNER JOIN Employees e ON gc.EmployeeId = e.EmployeeId
+            ISNULL(SUM(gc.TotalAmount), 0) as totalAmount,
+            ISNULL(SUM(gc.PendingAmount), 0) as pendingAmount,
+            ISNULL(SUM(gc.AmountPaid), 0) as totalPaid,
+            ISNULL(SUM(CASE WHEN gc.CreatedAt >= @StartOfMonth THEN gc.AmountPaid ELSE 0 END), 0) as thisMonthCollections
+          FROM Employees e
+          LEFT JOIN GymClients gc ON e.EmployeeId = gc.EmployeeId
           WHERE e.EmployeeName NOT LIKE 'del_%'
             AND LOWER(e.Status) NOT IN ('deleted', 'delete')
             AND (gc.TotalAmount IS NOT NULL OR gc.AmountPaid IS NOT NULL OR gc.PendingAmount IS NOT NULL)
