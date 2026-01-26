@@ -9,7 +9,7 @@ import {
   updateClient as updateClientRecord,
   createEmployeeInSQL,
 } from '../data/clientRepository.js';
-import { createGymClient, updateGymClient, deleteGymClient } from '../data/gymClientRepository.js';
+import { createGymClient, updateGymClient, deleteGymClient, getGymClientByEmployeeId } from '../data/gymClientRepository.js';
 import esslDeviceService from '../services/esslDeviceService.js';
 import etimetrackSyncService from '../services/etimetrackSyncService.js';
 import localApiService from '../services/localApiService.js';
@@ -157,18 +157,14 @@ export const createClient = async (req: Request, res: Response): Promise<void> =
     
     console.log(`✅ Employee created: ID=${employeeId}, DeviceCode=${employeeCodeInDevice}`);
     
-    // Step 2: Create gym client record (additional info) - only if any additional fields provided
-    const hasAdditionalInfo = (req.body as any).bloodGroup || 
-                              (req.body as any).months || 
-                              (req.body as any).trainer || 
-                              normalizedPayload.packageType ||
-                              normalizedPayload.packageAmount ||
-                              normalizedPayload.amountPaid ||
-                              (req.body as any).timings ||
-                              (req.body as any).paymentMode;
-    
-    if (hasAdditionalInfo) {
-      try {
+    // Step 2: Always create gym client record (automatic sync)
+    // This ensures every employee has a corresponding GymClients record
+    try {
+      // Check if GymClients record already exists
+      const existingGymClient = await getGymClientByEmployeeId(employeeId);
+      
+      if (!existingGymClient) {
+        // Create GymClients record with provided info or defaults
         await createGymClient({
           employeeId,
           employeeCodeInDevice,
@@ -183,13 +179,37 @@ export const createClient = async (req: Request, res: Response): Promise<void> =
           preferredTimings: (req.body as any).timings || undefined,
           paymentMode: (req.body as any).paymentMode || undefined,
         });
-        console.log(`✅ Gym client record created for EmployeeId=${employeeId}`);
-      } catch (gymClientError: any) {
-        console.warn(`⚠️ Failed to create gym client record: ${gymClientError.message}`);
-        // Continue even if gym client creation fails
+        console.log(`✅ Gym client record created automatically for EmployeeId=${employeeId}`);
+      } else {
+        // Update existing record if additional info provided
+        const hasAdditionalInfo = (req.body as any).bloodGroup || 
+                                  (req.body as any).months || 
+                                  (req.body as any).trainer || 
+                                  normalizedPayload.packageType ||
+                                  normalizedPayload.packageAmount ||
+                                  normalizedPayload.amountPaid ||
+                                  (req.body as any).timings ||
+                                  (req.body as any).paymentMode;
+        
+        if (hasAdditionalInfo) {
+          await updateGymClient(employeeId, {
+            bloodGroup: (req.body as any).bloodGroup,
+            months: (req.body as any).months ? parseInt((req.body as any).months) : undefined,
+            trainer: (req.body as any).trainer,
+            packageType: normalizedPayload.packageType,
+            totalAmount: normalizedPayload.packageAmount,
+            amountPaid: normalizedPayload.amountPaid,
+            pendingAmount: normalizedPayload.pendingAmount,
+            remainingDate: normalizedPayload.packageEndDate ? new Date(normalizedPayload.packageEndDate) : undefined,
+            preferredTimings: (req.body as any).timings,
+            paymentMode: (req.body as any).paymentMode,
+          });
+          console.log(`✅ Gym client record updated for EmployeeId=${employeeId}`);
+        }
       }
-    } else {
-      console.log(`ℹ️  No additional info provided, skipping GymClients table entry`);
+    } catch (gymClientError: any) {
+      console.warn(`⚠️ Failed to create/update gym client record: ${gymClientError.message}`);
+      // Continue even if gym client creation fails
     }
     
     // Step 3: Register user in DeviceUsers table for automatic middleware sync
@@ -500,7 +520,6 @@ export const updateClient = async (req: Request, res: Response): Promise<void> =
             amountPaid: updates.amountPaid,
             pendingAmount: updates.pendingAmount,
             remainingDate: updates.packageEndDate ? new Date(updates.packageEndDate) : undefined,
-            billingDate: (updates as any).billingDate ? new Date((updates as any).billingDate) : undefined,
             preferredTimings: (updates as any).timings,
             paymentMode: (updates as any).paymentMode,
           });

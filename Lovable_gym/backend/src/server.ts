@@ -241,6 +241,16 @@ const startServer = async () => {
       console.warn('⚠️  Profile table setup skipped:', tableError.message);
     }
     
+    // Auto-sync GymClients with Employees on startup
+    try {
+      const { syncGymClientsForAllEmployees } = await import('./data/gymClientRepository.js');
+      console.log('🔄 Auto-syncing GymClients with Employees table...');
+      const syncResult = await syncGymClientsForAllEmployees();
+      console.log(`✅ Auto-sync completed: ${syncResult.created} created, ${syncResult.skipped} skipped, ${syncResult.errors} errors`);
+    } catch (syncError: any) {
+      console.warn('⚠️  Auto-sync skipped:', syncError.message);
+    }
+    
     // Initialize eTimeTrack sync service (only if SQL is available)
     try {
       await etimetrackSyncService.initialize();

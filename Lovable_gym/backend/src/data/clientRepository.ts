@@ -419,5 +419,80 @@ export const getExpiringClients = async (startDate: Date, endDate: Date): Promis
   return [];
 };
 
+/**
+ * Create a new employee in the Employees table
+ * Returns the created employeeId and employeeCodeInDevice
+ */
+export const createEmployeeInSQL = async (data: {
+  employeeName: string;
+  contactNo?: string;
+  email?: string;
+  gender?: string;
+  address?: string;
+}): Promise<{ employeeId: number; employeeCodeInDevice: string }> => {
+  if (process.env.SQL_DISABLED === 'true' || process.env.USE_API_ONLY === 'true') {
+    throw new Error('SQL is disabled. Cannot create employee.');
+  }
+
+  try {
+    const result = await runQuery(async (request) => {
+      request.input('EmployeeName', sql.NVarChar(200), data.employeeName);
+      request.input('ContactNo', sql.NVarChar(50), data.contactNo || null);
+      request.input('Email', sql.NVarChar(200), data.email || null);
+      request.input('Gender', sql.NVarChar(10), data.gender || null);
+      request.input('ResidentialAddress', sql.NVarChar(sql.MAX), data.address || null);
+      
+      // Get the next EmployeeCode (usually max + 1)
+      const codeResult = await request.query(`
+        SELECT ISNULL(MAX(CAST(EmployeeCode AS INT)), 0) + 1 AS NextCode
+        FROM Employees
+        WHERE ISNUMERIC(EmployeeCode) = 1
+      `);
+      
+      const nextCode = codeResult.recordset[0]?.NextCode || 1;
+      const employeeCode = String(nextCode);
+      const employeeCodeInDevice = employeeCode; // Use same code for device
+      
+      request.input('EmployeeCode', sql.NVarChar(50), employeeCode);
+      request.input('EmployeeCodeInDevice', sql.NVarChar(50), employeeCodeInDevice);
+      request.input('Status', sql.NVarChar(20), 'Active');
+      request.input('CompanyId', sql.Int, 1);
+      request.input('DepartmentId', sql.Int, 1);
+      request.input('CategoryId', sql.Int, 1);
+      request.input('EmployementType', sql.NVarChar(50), 'Permanent');
+      request.input('DOJ', sql.DateTime, new Date());
+      request.input('DOR', sql.DateTime, new Date('3000-01-01')); // Far future date for active
+      request.input('DOC', sql.DateTime, new Date());
+      
+      return request.query(`
+        INSERT INTO Employees (
+          EmployeeName, EmployeeCode, EmployeeCodeInDevice, ContactNo, Email,
+          Gender, ResidentialAddress, Status, CompanyId, DepartmentId, CategoryId,
+          EmployementType, DOJ, DOR, DOC
+        )
+        OUTPUT INSERTED.EmployeeId, INSERTED.EmployeeCodeInDevice
+        VALUES (
+          @EmployeeName, @EmployeeCode, @EmployeeCodeInDevice, @ContactNo, @Email,
+          @Gender, @ResidentialAddress, @Status, @CompanyId, @DepartmentId, @CategoryId,
+          @EmployementType, @DOJ, @DOR, @DOC
+        )
+      `);
+    });
+
+    const inserted = result.recordset[0];
+    if (!inserted) {
+      throw new Error('Failed to create employee - no record returned');
+    }
+
+    return {
+      employeeId: inserted.EmployeeId,
+      employeeCodeInDevice: inserted.EmployeeCodeInDevice || String(inserted.EmployeeId),
+    };
+  } catch (error: any) {
+    console.error('❌ Error creating employee:', error.message);
+    throw error;
+  }
+};
+
 
 

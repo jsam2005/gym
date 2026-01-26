@@ -66,7 +66,7 @@ export function GymTable({
             <TableRow key={uniqueKey}>
               <TableCell className="font-medium">{client.deviceId || client.id || '-'}</TableCell>
               <TableCell className="font-medium">{client.name}</TableCell>
-              <TableCell>{client.contact}</TableCell>
+              <TableCell>{client.contact || 'N/A'}</TableCell>
               {showAmount && (
                 <TableCell>₹{client.amount?.toLocaleString()}</TableCell>
               )}
