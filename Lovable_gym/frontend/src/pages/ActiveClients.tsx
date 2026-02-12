@@ -21,17 +21,22 @@ const ActiveClients = () => {
         const response = await clientAPI.getActive();
         if (response.data.success) {
           // Transform API data to match the expected format
-          const transformedClients = response.data.clients.map((client: any) => ({
-            id: client._id,
-            name: `${client.firstName} ${client.lastName}`,
-            contact: client.phone,
-            status: client.status,
-            billingDate: new Date(client.packageStartDate).toLocaleDateString('en-GB', { 
-              day: 'numeric', 
-              month: 'long', 
-              year: 'numeric' 
-            }),
-            duration: client.packageType
+          const transformedClients = response.data.clients.map((client: any, index: number) => ({
+            id: client.id || client._id || `client-${index}`,
+            deviceId: client.esslUserId || client.employeeCodeInDevice || '',
+            name: `${client.firstName || ''} ${client.lastName || ''}`.trim() || 'Unknown',
+            contact: client.phone || '',
+            status: client.status || 'inactive',
+            billingDate: client.packageStartDate
+              ? new Date(client.packageStartDate).toLocaleDateString('en-GB', {
+                  day: 'numeric',
+                  month: 'long',
+                  year: 'numeric',
+                })
+              : 'N/A',
+            duration: (client.months && Number(client.months) > 0)
+              ? `${Number(client.months)} month${Number(client.months) > 1 ? 's' : ''}`
+              : (client.packageType || 'N/A'),
           }));
           setClients(transformedClients);
         }

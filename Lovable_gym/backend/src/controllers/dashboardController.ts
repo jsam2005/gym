@@ -113,8 +113,8 @@ export const getDashboardStats = async (req: Request, res: Response): Promise<vo
           FORMAT(DOJ, 'MMM') as month,
           COUNT(*) as value
         FROM Employees
-        WHERE EmployeeName NOT LIKE 'del_%'
-          AND LOWER(Status) NOT IN ('deleted', 'delete')
+        WHERE COALESCE(EmployeeName, '') NOT LIKE 'del_%'
+          AND COALESCE(LOWER(Status), '') NOT IN ('deleted', 'delete')
           AND DOJ >= DATEADD(MONTH, -12, GETDATE())
         GROUP BY FORMAT(DOJ, 'MMM'), YEAR(DOJ), MONTH(DOJ)
         ORDER BY YEAR(DOJ), MONTH(DOJ)

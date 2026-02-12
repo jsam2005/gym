@@ -44,7 +44,9 @@ const AllClients = () => {
               year: 'numeric' 
                 })
               : 'N/A',
-            duration: client.packageType || 'N/A'
+            duration: (client.months && Number(client.months) > 0)
+              ? `${Number(client.months)} month${Number(client.months) > 1 ? 's' : ''}`
+              : (client.packageType || 'N/A')
           }))
           // Remove duplicates based on EmployeeId (id field)
           .filter((client: any, index: number, self: any[]) => 

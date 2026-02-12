@@ -22,6 +22,7 @@ export interface ClientEntity {
   address: string;
   emergencyContact: EmergencyContact;
   packageType: string;
+  months?: number;
   packageStartDate: string;
   packageEndDate: string;
   packageAmount: number;

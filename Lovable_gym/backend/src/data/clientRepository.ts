@@ -20,9 +20,22 @@ SELECT
   e.EmployeePhoto AS Photo,
   e.DOJ AS CreatedAt,
   e.DOR AS UpdatedAt,
+  gc.TotalAmount AS GymTotalAmount,
+  gc.AmountPaid AS GymAmountPaid,
+  gc.PendingAmount AS GymPendingAmount,
+  gc.RemainingDate AS GymRemainingDate,
+  gc.PackageType AS GymPackageType,
+  gc.Months AS GymMonths,
+  gc.PaymentMode AS GymPaymentMode,
+  gc.Trainer AS GymTrainer,
+  gc.PreferredTimings AS GymPreferredTimings,
+  gc.BloodGroup AS GymBloodGroup,
+  gc.CreatedAt AS GymBillingDate,
+  gc.UpdatedAt AS GymLastUpdated,
   CASE WHEN eb.EmployeeBioId IS NOT NULL THEN 1 ELSE 0 END AS HasBiometric
 FROM Employees e
 LEFT JOIN EmployeesBio eb ON e.EmployeeId = eb.EmployeeId
+LEFT JOIN GymClients gc ON e.EmployeeId = gc.EmployeeId
 `;
 
 // Helper function to split EmployeeName into firstName and lastName
@@ -40,44 +53,75 @@ const splitName = (fullName: string | null | undefined): { firstName: string; la
 };
 
 // Map Employees table columns to ClientEntity structure
-// STEP 1: Only map name, id, and status - leave others empty
 const mapClient = (row: any): ClientEntity => {
   const { firstName, lastName } = splitName(row.EmployeeName);
   const status = row.Status?.toLowerCase() === 'active' ? 'active' : 
                  row.Status?.toLowerCase() === 'inactive' ? 'inactive' :
                  row.Status?.toLowerCase() === 'suspended' ? 'suspended' : 'active';
+
+  const packageAmount = Number(row.GymTotalAmount ?? 0) || 0;
+  const amountPaid = Number(row.GymAmountPaid ?? 0) || 0;
+  const pendingAmountRaw = row.GymPendingAmount;
+  const pendingAmount =
+    pendingAmountRaw !== null && pendingAmountRaw !== undefined
+      ? Number(pendingAmountRaw) || 0
+      : Math.max(0, packageAmount - amountPaid);
+
+  let paymentStatus: ClientEntity['paymentStatus'] = 'pending';
+  if (packageAmount > 0 && pendingAmount <= 0) {
+    paymentStatus = 'paid';
+  } else if (amountPaid > 0) {
+    paymentStatus = 'partial';
+  }
+
+  const billingDate = row.GymBillingDate ? new Date(row.GymBillingDate) : null;
+  const remainingDate = row.GymRemainingDate ? new Date(row.GymRemainingDate) : null;
+  const dob = row.DateOfBirth ? new Date(row.DateOfBirth) : null;
+
+  const normalizedGender = ((): ClientEntity['gender'] => {
+    const g = (row.Gender ?? '').toString().toLowerCase().trim();
+    if (g === 'm' || g === 'male') return 'male';
+    if (g === 'f' || g === 'female') return 'female';
+    return 'other';
+  })();
   
   return {
     id: row.id || String(row.EmployeeId || ''),
     firstName: firstName,
     lastName: lastName,
-    email: '', // Empty for now
-    phone: '', // Empty for now
-    dateOfBirth: new Date('1900-01-01').toISOString(), // Empty/default
-    gender: 'other' as const, // Empty/default
-    address: '', // Empty for now
+    email: (row.Email ?? '').toString(),
+    phone: (row.Phone ?? '').toString(),
+    dateOfBirth: dob && !Number.isNaN(dob.getTime()) ? dob.toISOString() : '',
+    gender: normalizedGender,
+    address: (row.Address ?? '').toString(),
     emergencyContact: {
       name: '',
       phone: '',
       relation: '',
     },
-    packageType: '', // Empty
-    packageStartDate: new Date().toISOString(), // Default
-    packageEndDate: new Date().toISOString(), // Default
-    packageAmount: 0, // Empty
-    amountPaid: 0, // Empty
-    pendingAmount: 0, // Empty
-    paymentStatus: 'pending' as const, // Default
+    packageType: (row.GymPackageType ?? '').toString(),
+    months: row.GymMonths !== null && row.GymMonths !== undefined ? Number(row.GymMonths) : undefined,
+    // Use GymClients.CreatedAt as package/billing start date if present
+    packageStartDate: billingDate && !Number.isNaN(billingDate.getTime()) ? billingDate.toISOString() : '',
+    // Use GymClients.RemainingDate as package end date if present
+    packageEndDate: remainingDate && !Number.isNaN(remainingDate.getTime()) ? remainingDate.toISOString() : '',
+    packageAmount,
+    amountPaid,
+    pendingAmount,
+    paymentStatus,
     esslUserId: row.EmployeeCodeInDevice || row.EmployeeCode || null, // Device ID (EmployeeCodeInDevice)
-    fingerprintEnrolled: false, // Empty/default
-    accessSchedule: [], // Empty
+    fingerprintEnrolled: Boolean(row.HasBiometric),
+    accessSchedule: [],
     isAccessActive: false, // Empty/default
     lastAccessTime: null, // Empty
     accessAttempts: 0, // Empty
     status: status, // ✅ Only field we care about
-    photo: null, // Empty for now
-    createdAt: new Date().toISOString(), // Default
-    updatedAt: new Date().toISOString(), // Default
+    photo: row.Photo ?? null,
+    createdAt: row.CreatedAt ? new Date(row.CreatedAt).toISOString() : '',
+    // Prefer GymClients.UpdatedAt if present, otherwise Employees.DOR
+    updatedAt: row.GymLastUpdated
+      ? new Date(row.GymLastUpdated).toISOString()
+      : (row.UpdatedAt ? new Date(row.UpdatedAt).toISOString() : ''),
   };
 };
 
@@ -115,7 +159,7 @@ export const getClients = async (params: {
     
     // Always exclude deleted employees
     // ESSL TrackLite marks deleted employees with 'del_' prefix in name or Status = 'Deleted'
-    whereClauses.push("(e.EmployeeName NOT LIKE 'del_%' AND LOWER(e.Status) NOT IN ('deleted', 'delete'))");
+    whereClauses.push("(COALESCE(e.EmployeeName, '') NOT LIKE 'del_%' AND COALESCE(LOWER(e.Status), '') NOT IN ('deleted', 'delete'))");
     
     if (params.status) {
       // Map frontend status to Employees.Status
@@ -197,13 +241,17 @@ export const getClientById = async (id: string): Promise<ClientEntity | null> =>
   }
 
   try {
+    const employeeId = parseInt(id, 10);
+    if (Number.isNaN(employeeId)) {
+      return null;
+    }
     const result = await runQuery((request) => {
-      request.input('EmployeeId', sql.Int, parseInt(id) || id);
+      request.input('EmployeeId', sql.Int, employeeId);
       return request.query(`
         ${baseSelect} 
         WHERE e.EmployeeId = @EmployeeId
-        AND e.EmployeeName NOT LIKE 'del_%'
-        AND LOWER(e.Status) NOT IN ('deleted', 'delete')
+        AND COALESCE(e.EmployeeName, '') NOT LIKE 'del_%'
+        AND COALESCE(LOWER(e.Status), '') NOT IN ('deleted', 'delete')
       `);
     });
 
@@ -298,9 +346,71 @@ const runClientUpdate = async (conditionSql: string, request: sql.Request, field
 };
 
 export const updateClient = async (id: string, updates: Partial<ClientEntity>): Promise<ClientEntity | null> => {
-  // Read-only: Employees are managed by ESSL TrackLite
-  // Only allow updating non-critical fields if needed
-  throw new Error('Cannot update employee. Employees are managed by ESSL TrackLite. Use ESSL TrackLite to modify employee data.');
+  if (process.env.SQL_DISABLED === 'true' || process.env.USE_API_ONLY === 'true') {
+    throw new Error('SQL is disabled. Cannot update employee.');
+  }
+
+  const employeeId = parseInt(id, 10);
+  if (Number.isNaN(employeeId)) {
+    return null;
+  }
+
+  const result = await runQuery(async (request) => {
+    request.input('EmployeeId', sql.Int, employeeId);
+
+    const fields: string[] = [];
+    const setField = (
+      column: string,
+      param: string,
+      type: sql.ISqlTypeFactoryWithNoParams | sql.ISqlTypeFactoryWithLength | sql.ISqlTypeFactory,
+      value: any
+    ) => {
+      if (value === undefined) return;
+      fields.push(`${column} = @${param}`);
+      request.input(param, type as sql.ISqlType, value);
+    };
+
+    // Update name by combining firstName + lastName when provided
+    if (updates.firstName !== undefined || updates.lastName !== undefined) {
+      const first = (updates.firstName ?? '').toString().trim();
+      const last = (updates.lastName ?? '').toString().trim();
+      const full = `${first} ${last}`.trim();
+      setField('EmployeeName', 'EmployeeName', sql.NVarChar(200), full.length > 0 ? full : null);
+    }
+
+    setField('ContactNo', 'ContactNo', sql.NVarChar(50), updates.phone);
+    setField('Email', 'Email', sql.NVarChar(200), updates.email);
+    setField('DOB', 'DOB', sql.DateTime, updates.dateOfBirth ? new Date(updates.dateOfBirth) : undefined);
+    setField('Gender', 'Gender', sql.NVarChar(10), updates.gender);
+    setField('ResidentialAddress', 'ResidentialAddress', sql.NVarChar(sql.MAX), updates.address);
+    setField('Status', 'Status', sql.NVarChar(20), updates.status ? updates.status.toString() : undefined);
+    setField('EmployeePhoto', 'EmployeePhoto', sql.NVarChar(sql.MAX), updates.photo);
+
+    if (fields.length === 0) {
+      // Nothing to update, just return current row
+      return request.query(`
+        ${baseSelect}
+        WHERE e.EmployeeId = @EmployeeId
+          AND COALESCE(e.EmployeeName, '') NOT LIKE 'del_%'
+          AND COALESCE(LOWER(e.Status), '') NOT IN ('deleted', 'delete')
+      `);
+    }
+
+    // Note: Employees.DOR is used by some installs as a "retirement" date; we avoid touching it.
+    const query = `
+      UPDATE Employees
+      SET ${fields.join(', ')}, DOC = GETDATE()
+      WHERE EmployeeId = @EmployeeId;
+
+      ${baseSelect}
+      WHERE e.EmployeeId = @EmployeeId
+        AND COALESCE(e.EmployeeName, '') NOT LIKE 'del_%'
+        AND COALESCE(LOWER(e.Status), '') NOT IN ('deleted', 'delete');
+    `;
+    return request.query(query);
+  });
+
+  return result.recordset?.[0] ? mapClient(result.recordset[0]) : null;
 };
 
 export const updateClientByEsslId = async (

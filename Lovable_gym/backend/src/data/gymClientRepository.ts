@@ -131,6 +131,10 @@ export const updateGymClient = async (employeeId: number, updates: Partial<GymCl
   const updateFields: string[] = [];
   const updateParams: { [key: string]: any } = {};
   
+  if (updates.employeeCodeInDevice !== undefined) {
+    updateParams['EmployeeCodeInDevice'] = updates.employeeCodeInDevice || null;
+    updateFields.push('EmployeeCodeInDevice = @EmployeeCodeInDevice');
+  }
   if (updates.bloodGroup !== undefined) {
     updateParams['BloodGroup'] = updates.bloodGroup || null;
     updateFields.push('BloodGroup = @BloodGroup');
@@ -180,7 +184,27 @@ export const updateGymClient = async (employeeId: number, updates: Partial<GymCl
   
   await runQuery(async (request) => {
     request.input('EmployeeId', sql.Int, employeeId);
+    // Upsert: ensure a row exists for this employee before updating
+    request.input(
+      'EmployeeCodeInDeviceFallback',
+      sql.NVarChar(50),
+      (updates.employeeCodeInDevice || String(employeeId) || '').toString()
+    );
+    await request.query(`
+      IF NOT EXISTS (SELECT 1 FROM GymClients WHERE EmployeeId = @EmployeeId)
+      BEGIN
+        INSERT INTO GymClients (
+          EmployeeId, EmployeeCodeInDevice, CreatedAt, UpdatedAt
+        )
+        VALUES (
+          @EmployeeId, @EmployeeCodeInDeviceFallback, GETDATE(), GETDATE()
+        )
+      END
+    `);
     
+    if (updateParams['EmployeeCodeInDevice'] !== undefined) {
+      request.input('EmployeeCodeInDevice', sql.NVarChar(50), updateParams['EmployeeCodeInDevice']);
+    }
     if (updateParams['BloodGroup'] !== undefined) {
       request.input('BloodGroup', sql.NVarChar(10), updateParams['BloodGroup']);
     }
@@ -258,8 +282,8 @@ export const syncGymClientsForAllEmployees = async (): Promise<{ created: number
         FROM Employees e
         LEFT JOIN GymClients gc ON e.EmployeeId = gc.EmployeeId
         WHERE gc.EmployeeId IS NULL
-          AND e.EmployeeName NOT LIKE 'del_%'
-          AND LOWER(e.Status) NOT IN ('deleted', 'delete')
+          AND COALESCE(e.EmployeeName, '') NOT LIKE 'del_%'
+          AND COALESCE(LOWER(e.Status), '') NOT IN ('deleted', 'delete')
       `);
     });
     
