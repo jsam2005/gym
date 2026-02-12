@@ -97,7 +97,12 @@ export const getBillingClients = async (req: Request, res: Response): Promise<vo
         WHERE COALESCE(e.EmployeeName, '') NOT LIKE 'del_%'
           AND COALESCE(LOWER(e.Status), '') NOT IN ('deleted', 'delete')
         ORDER BY
-          TRY_CONVERT(INT, e.EmployeeCodeInDevice) ASC,
+          CASE
+            WHEN e.EmployeeCodeInDevice IS NOT NULL
+              AND e.EmployeeCodeInDevice <> ''
+              AND e.EmployeeCodeInDevice NOT LIKE '%[^0-9]%'
+            THEN CAST(e.EmployeeCodeInDevice AS INT)
+          END ASC,
           e.EmployeeCodeInDevice ASC,
           e.EmployeeId ASC
       `);

@@ -208,7 +208,12 @@ export const getClients = async (params: {
       SELECT *
       FROM ClientData
       ORDER BY
-        TRY_CONVERT(INT, EmployeeCodeInDevice) ASC,
+        CASE
+          WHEN EmployeeCodeInDevice IS NOT NULL
+            AND EmployeeCodeInDevice <> ''
+            AND EmployeeCodeInDevice NOT LIKE '%[^0-9]%'
+          THEN CAST(EmployeeCodeInDevice AS INT)
+        END ASC,
         EmployeeCodeInDevice ASC,
         EmployeeId ASC
       OFFSET @Offset ROWS FETCH NEXT @Limit ROWS ONLY;
