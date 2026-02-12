@@ -96,8 +96,7 @@ export const getBillingClients = async (req: Request, res: Response): Promise<vo
         ) gc
         WHERE COALESCE(e.EmployeeName, '') NOT LIKE 'del_%'
           AND COALESCE(LOWER(e.Status), '') NOT IN ('deleted', 'delete')
-        ORDER BY 
-          CASE WHEN COALESCE(gc.BillingDate, gc.CreatedAt) IS NOT NULL THEN COALESCE(gc.BillingDate, gc.CreatedAt) ELSE e.DOJ END DESC
+        ORDER BY e.EmployeeName ASC, e.EmployeeId ASC
       `);
     } catch (queryError: any) {
       // If query fails (e.g., table structure issue), return empty array

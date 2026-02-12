@@ -17,6 +17,8 @@ const Billing = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [billingClients, setBillingClients] = useState<Client[]>([]);
+  const [page, setPage] = useState(1);
+  const pageSize = 50;
   const [pendingOverdue, setPendingOverdue] = useState<{ pending: any[]; overdue: any[] }>({ pending: [], overdue: [] });
   const [gymProfile, setGymProfile] = useState({ 
     gymName: 'MS Fitness Studio', 
@@ -77,68 +79,30 @@ const Billing = () => {
     try {
       setLoading(true);
       
-      // Fetch both billing clients and all clients to merge amount/pendingAmount data
-      const [clientsRes, allClientsRes, pendingRes, summaryRes] = await Promise.all([
+      // Billing API already includes GymClients amounts; avoid extra /clients calls
+      const [clientsRes, pendingRes, summaryRes] = await Promise.all([
         billingAPI.getClients(),
-        clientAPI.getAll(), // Fetch all clients to get amount and pendingAmount
         billingAPI.getPendingOverdue(),
         billingAPI.getSummary(),
       ]);
 
-      // Create a map of client data by EmployeeId for quick lookup
-      const clientDataMap = new Map();
-      if (allClientsRes.data && allClientsRes.data.success && Array.isArray(allClientsRes.data.clients)) {
-        allClientsRes.data.clients.forEach((client: any) => {
-          const clientId = client.id || client._id || client.employeeId;
-          if (clientId) {
-            clientDataMap.set(String(clientId), {
-              deviceId: client.esslUserId || client.employeeCodeInDevice || client.deviceId || '',
-              packageAmount: client.packageAmount || (client as any).totalAmount || 0,
-              pendingAmount: client.pendingAmount || 0,
-              amountPaid: client.amountPaid || 0,
-              status: client.status || 'inactive', // Include status from client data
-            });
-          }
-        });
-      }
-
-        // Merge billing data with client data to get amount and pendingAmount
+      // Normalize, sort ascending by name
       let mergedClients: any[] = [];
       if (clientsRes.data.success) {
-        mergedClients = (clientsRes.data.data || []).map((billingClient: any) => {
-          const clientId = String(billingClient.id);
-          const clientData = clientDataMap.get(clientId);
-          
-          // Use deviceId (esslUserId) as User ID, same as clients page
-          const deviceId = clientData?.deviceId || billingClient.deviceId || billingClient.esslUserId || '';
-          
-          // Get amount and pendingAmount from client data (preferred) or billing data (fallback)
-          const amount = clientData?.packageAmount || billingClient.amount || billingClient.totalAmount || 0;
-          const pendingAmount = clientData?.pendingAmount !== undefined && clientData?.pendingAmount !== null
-            ? clientData.pendingAmount 
-            : (billingClient.balance !== undefined && billingClient.balance !== null 
-                ? billingClient.balance 
-                : (billingClient.pendingAmount !== undefined && billingClient.pendingAmount !== null 
-                    ? billingClient.pendingAmount 
-                    : 0));
-          
-          return {
+        mergedClients = (clientsRes.data.data || [])
+          .map((billingClient: any) => ({
             ...billingClient,
-            id: billingClient.id, // Keep EmployeeId for internal use
-            deviceId: deviceId, // User ID for display (same as clients page)
-            amount: amount,
-            balance: pendingAmount,
-            pendingAmount: pendingAmount,
+            id: billingClient.id,
+            deviceId: billingClient.deviceId || billingClient.esslUserId || '',
             contact: billingClient.contact || 'N/A',
-            status: clientData?.status || billingClient.status || 'inactive', // Use status from client data (preferred) or billing data (fallback)
-          };
-        });
+          }))
+          .sort((a: any, b: any) => String(a.name || '').localeCompare(String(b.name || '')));
         setBillingClients(mergedClients);
       }
       if (pendingRes.data.success) {
         setPendingOverdue({
-          pending: pendingRes.data.data.pending || [],
-          overdue: pendingRes.data.data.overdue || [],
+          pending: (pendingRes.data.data.pending || []).slice().sort((a: any, b: any) => String(a.name || '').localeCompare(String(b.name || ''))),
+          overdue: (pendingRes.data.data.overdue || []).slice().sort((a: any, b: any) => String(a.name || '').localeCompare(String(b.name || ''))),
         });
       }
       
@@ -184,10 +148,19 @@ const Billing = () => {
     }
   };
 
+  // Search by client name (requested)
   const filteredClients = billingClients.filter(client =>
-    client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    client.contact.includes(searchTerm)
+    String(client.name || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  // Pagination (50 rows per page)
+  const totalPages = Math.max(1, Math.ceil(filteredClients.length / pageSize));
+  const pagedClients = filteredClients.slice((page - 1) * pageSize, page * pageSize);
+
+  useEffect(() => {
+    // Reset to page 1 when searching
+    setPage(1);
+  }, [searchTerm]);
 
   const handleView = async (client: Client) => {
     try {
@@ -635,14 +608,37 @@ const Billing = () => {
           {loading ? (
             <div className="gym-card p-8 text-center text-gray-500">Loading billing data...</div>
           ) : (
-            <GymTable 
-              clients={filteredClients}
-              showAmount={true}
-              showBalance={true}
-              onView={handleView}
-              onEdit={handleEdit}
-              onDownload={handleDownloadBill}
-            />
+            <>
+              <GymTable 
+                clients={pagedClients}
+                showAmount={true}
+                showBalance={true}
+                onView={handleView}
+                onEdit={handleEdit}
+                onDownload={handleDownloadBill}
+              />
+              <div className="flex items-center justify-between mt-4">
+                <div className="text-sm text-muted-foreground">
+                  Page {page} of {totalPages}
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    className="px-3 py-1 border rounded disabled:opacity-50"
+                    disabled={page <= 1}
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  >
+                    Prev
+                  </button>
+                  <button
+                    className="px-3 py-1 border rounded disabled:opacity-50"
+                    disabled={page >= totalPages}
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            </>
           )}
         </TabsContent>
 

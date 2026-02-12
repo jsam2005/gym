@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { GymTable, Client } from "@/components/GymTable";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { clientAPI } from "@/lib/api";
+import { Button } from "@/components/ui/button";
 
 const InactiveClients = () => {
   const navigate = useNavigate();
@@ -12,12 +13,15 @@ const InactiveClients = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pages, setPages] = useState(1);
+  const limit = 50;
 
   // Fetch inactive clients from API
   const fetchInactiveClients = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await clientAPI.getAll({ status: 'inactive', limit: 5000 });
+      const response = await clientAPI.getAll({ status: 'inactive', page, limit, search: searchTerm ? searchTerm : undefined });
       if (response.data.success) {
         // Transform API data to match the expected format
         const transformedClients = (Array.isArray(response.data.clients) ? response.data.clients : []).map((client: any, index: number) => ({
@@ -36,16 +40,30 @@ const InactiveClients = () => {
           duration: (client.months && Number(client.months) > 0)
             ? `${Number(client.months)} month${Number(client.months) > 1 ? 's' : ''}`
             : (client.packageType || 'N/A'),
-        }));
+        })).sort((a: any, b: any) => {
+          const aId = a.deviceId ?? a.id ?? '';
+          const bId = b.deviceId ?? b.id ?? '';
+          const aNum = Number(aId);
+          const bNum = Number(bId);
+          const aNumOk = Number.isFinite(aNum);
+          const bNumOk = Number.isFinite(bNum);
+          if (aNumOk && bNumOk && aNum !== bNum) return aNum - bNum;
+          const aStr = String(aId);
+          const bStr = String(bId);
+          if (aStr !== bStr) return aStr.localeCompare(bStr);
+          return String(a.name || '').localeCompare(String(b.name || ''));
+        });
         setClients(transformedClients);
+        setPages(Number(response.data.pagination?.pages || 1));
       }
     } catch (error) {
       console.error('Error fetching inactive clients:', error);
       setClients([]);
+      setPages(1);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [page, searchTerm]);
 
   // Fetch inactive clients on mount
   useEffect(() => {
@@ -62,10 +80,7 @@ const InactiveClients = () => {
     return () => window.removeEventListener('clientUpdated', handleClientUpdate);
   }, [fetchInactiveClients]);
 
-  const filteredClients = clients.filter(client =>
-    client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    client.contact.includes(searchTerm)
-  );
+  const filteredClients = clients;
 
   const handleView = async (client: Client) => {
     try {
@@ -147,11 +162,26 @@ const InactiveClients = () => {
           <div className="text-gray-400">Loading inactive clients...</div>
         </div>
       ) : (
-        <GymTable 
-          clients={filteredClients}
-          onView={handleView}
-          onDelete={handleDelete}
-        />
+        <>
+          <GymTable 
+            clients={filteredClients}
+            onView={handleView}
+            onDelete={handleDelete}
+          />
+          <div className="flex items-center justify-between mt-4">
+            <div className="text-sm text-muted-foreground">
+              Page {page} of {pages}
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" disabled={page <= 1 || loading} onClick={() => setPage(p => Math.max(1, p - 1))}>
+                Prev
+              </Button>
+              <Button variant="outline" disabled={page >= pages || loading} onClick={() => setPage(p => Math.min(pages, p + 1))}>
+                Next
+              </Button>
+            </div>
+          </div>
+        </>
       )}
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>

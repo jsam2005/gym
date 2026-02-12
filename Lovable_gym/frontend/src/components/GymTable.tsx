@@ -1,4 +1,4 @@
-import { Eye, Trash2 } from "lucide-react";
+import { Download, Edit, Eye, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/status-badge";
 import {
@@ -15,12 +15,20 @@ export interface Client {
   deviceId?: string | number; // Device ID (EmployeeCodeInDevice)
   name: string;
   contact: string;
-  status: "active" | "inactive";
+  status: "active" | "inactive" | "suspended";
   billingDate: string;
   duration: string;
   amount?: number;
   balance?: number;
   remainingDuration?: string;
+  pendingAmount?: number;
+  amountPaid?: number;
+  totalAmount?: number;
+  packageAmount?: number;
+  email?: string;
+  gender?: string;
+  bloodGroup?: string | null;
+  esslUserId?: string;
 }
 
 interface GymTableProps {
@@ -30,6 +38,8 @@ interface GymTableProps {
   showRemainingDuration?: boolean;
   onView?: (client: Client) => void;
   onDelete?: (client: Client) => void;
+  onEdit?: (client: Client) => void;
+  onDownload?: (client: Client) => void;
 }
 
 export function GymTable({ 
@@ -38,7 +48,9 @@ export function GymTable({
   showBalance = false,
   showRemainingDuration = false,
   onView,
-  onDelete 
+  onDelete,
+  onEdit,
+  onDownload,
 }: GymTableProps) {
   return (
     <div className="gym-card overflow-hidden">
@@ -91,6 +103,28 @@ export function GymTable({
                   >
                     <Eye className="h-4 w-4" />
                   </Button>
+                  {onEdit && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onEdit(client)}
+                      className="h-8 w-8 p-0"
+                      title="Edit"
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                  )}
+                  {onDownload && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onDownload(client)}
+                      className="h-8 w-8 p-0"
+                      title="Download"
+                    >
+                      <Download className="h-4 w-4" />
+                    </Button>
+                  )}
                   <Button
                     variant="outline"
                     size="sm"

@@ -17,16 +17,25 @@ const AllClients = () => {
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [page, setPage] = useState(1);
+  const [pages, setPages] = useState(1);
+  const limit = 50;
 
   // Fetch clients from API - extracted to be reusable
-  const fetchClients = async (isRefresh = false) => {
+  const fetchClients = async (isRefresh = false, overridePage?: number, overrideSearch?: string) => {
       try {
       if (isRefresh) {
         setRefreshing(true);
       } else {
         setLoading(true);
       }
-        const response = await clientAPI.getAll({ limit: 5000 });
+        const effectivePage = overridePage ?? page;
+        const effectiveSearch = overrideSearch ?? searchTerm;
+        const response = await clientAPI.getAll({
+          page: effectivePage,
+          limit,
+          search: effectiveSearch ? effectiveSearch : undefined,
+        });
         if (response.data.success) {
           // Transform API data to match the expected format
         // Transform and deduplicate clients
@@ -51,12 +60,32 @@ const AllClients = () => {
           // Remove duplicates based on EmployeeId (id field)
           .filter((client: any, index: number, self: any[]) => 
             index === self.findIndex((c: any) => c.id === client.id)
-          );
+          )
+          // Always show ascending order by User ID (deviceId) then name
+          .sort((a: any, b: any) => {
+            const aId = a.deviceId ?? a.id ?? '';
+            const bId = b.deviceId ?? b.id ?? '';
+            const aNum = Number(aId);
+            const bNum = Number(bId);
+            const aNumOk = Number.isFinite(aNum);
+            const bNumOk = Number.isFinite(bNum);
+            if (aNumOk && bNumOk && aNum !== bNum) return aNum - bNum;
+            const aStr = String(aId);
+            const bStr = String(bId);
+            if (aStr !== bStr) return aStr.localeCompare(bStr);
+            return String(a.name || '').localeCompare(String(b.name || ''));
+          });
           setClients(transformedClients);
+          if (response.data.pagination?.pages) {
+            setPages(Number(response.data.pagination.pages) || 1);
+          } else {
+            setPages(1);
+          }
         }
       } catch (error) {
         console.error('Error fetching clients:', error);
         setClients([]);
+        setPages(1);
       } finally {
       if (isRefresh) {
         setRefreshing(false);
@@ -71,10 +100,21 @@ const AllClients = () => {
     fetchClients(false);
   }, []);
 
-  const filteredClients = clients.filter(client =>
-    client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    client.contact.includes(searchTerm)
-  );
+  // Server-side search: debounce and reset to page 1
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setPage(1);
+      fetchClients(false, 1, searchTerm);
+    }, 250);
+    return () => clearTimeout(t);
+  }, [searchTerm]);
+
+  // Page change fetch
+  useEffect(() => {
+    fetchClients(false, page, searchTerm);
+  }, [page]);
+
+  const filteredClients = clients;
 
   const handleView = async (client: Client) => {
     try {
@@ -208,11 +248,26 @@ const AllClients = () => {
           <div className="text-gray-400">Loading clients...</div>
         </div>
       ) : (
-        <GymTable 
-          clients={filteredClients}
-          onView={handleView}
-          onDelete={handleDelete}
-        />
+        <>
+          <GymTable 
+            clients={filteredClients}
+            onView={handleView}
+            onDelete={handleDelete}
+          />
+          <div className="flex items-center justify-between mt-4">
+            <div className="text-sm text-muted-foreground">
+              Page {page} of {pages}
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" disabled={page <= 1 || loading || refreshing} onClick={() => setPage(p => Math.max(1, p - 1))}>
+                Prev
+              </Button>
+              <Button variant="outline" disabled={page >= pages || loading || refreshing} onClick={() => setPage(p => Math.min(pages, p + 1))}>
+                Next
+              </Button>
+            </div>
+          </div>
+        </>
       )}
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
