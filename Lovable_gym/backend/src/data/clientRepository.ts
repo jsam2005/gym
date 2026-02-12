@@ -189,7 +189,8 @@ export const getClients = async (params: {
       };
       const sqlStatus = statusMap[params.status.toLowerCase()] || params.status;
       request.input('StatusFilter', sql.NVarChar(20), sqlStatus);
-      whereClauses.push('e.Status = @StatusFilter');
+      // Case-insensitive match (TrackLite often stores 'Active'/'Inactive')
+      whereClauses.push("COALESCE(LOWER(e.Status), '') = COALESCE(LOWER(@StatusFilter), '')");
     }
     if (params.search) {
       request.input('Search', sql.NVarChar(200), `%${params.search}%`);

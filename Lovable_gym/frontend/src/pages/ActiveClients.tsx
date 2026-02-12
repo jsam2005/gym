@@ -15,7 +15,7 @@ const ActiveClients = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [pages, setPages] = useState(1);
-  const limit = 25;
+  const [limit, setLimit] = useState(25);
 
   // Fetch active clients from API
   useEffect(() => {
@@ -67,7 +67,7 @@ const ActiveClients = () => {
     };
 
     fetchActiveClients();
-  }, [page, searchTerm]);
+  }, [page, searchTerm, limit]);
 
   const filteredClients = clients;
 
@@ -159,7 +159,23 @@ const ActiveClients = () => {
             <div className="text-sm text-muted-foreground">
               Page {page} of {pages}
             </div>
-            <div className="flex gap-2">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                Rows
+                <select
+                  value={limit}
+                  onChange={(e) => {
+                    const next = Number(e.target.value) || 25;
+                    setLimit(next);
+                    setPage(1);
+                  }}
+                  className="bg-transparent border border-border rounded px-2 py-1 text-foreground"
+                >
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </select>
+              </div>
               <Button
                 variant="outline"
                 disabled={page <= 1 || loading}
@@ -349,24 +365,6 @@ const ActiveClients = () => {
                         fontWeight: '500'
                       }}>
                         {(selectedClient as any).bloodGroup || ''}
-                      </div>
-                    </div>
-                    <div>
-                      <label style={{color: '#D1D5DB', fontSize: '14px', display: 'block', marginBottom: '8px', fontWeight: '500'}}>
-                        Amount
-                      </label>
-                      <div style={{
-                        backgroundColor: '#4B5563',
-                        padding: '12px 16px',
-                        borderRadius: '8px',
-                        border: 'none',
-                        fontSize: '16px',
-                        color: '#F9FAFB',
-                        fontWeight: '500'
-                      }}>
-                        {((selectedClient as any).amount && (selectedClient as any).amount > 0) || ((selectedClient as any).packageAmount && (selectedClient as any).packageAmount > 0)
-                          ? `₹${((selectedClient as any).amount || (selectedClient as any).packageAmount || 0).toLocaleString('en-IN')}`
-                          : ''}
                       </div>
                     </div>
                   </div>

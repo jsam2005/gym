@@ -19,7 +19,7 @@ const AllClients = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [page, setPage] = useState(1);
   const [pages, setPages] = useState(1);
-  const limit = 25;
+  const [limit, setLimit] = useState(25);
 
   // Fetch clients from API - extracted to be reusable
   const fetchClients = async (isRefresh = false, overridePage?: number, overrideSearch?: string) => {
@@ -112,7 +112,7 @@ const AllClients = () => {
   // Page change fetch
   useEffect(() => {
     fetchClients(false, page, searchTerm);
-  }, [page]);
+  }, [page, limit]);
 
   const filteredClients = clients;
 
@@ -263,7 +263,23 @@ const AllClients = () => {
             <div className="text-sm text-muted-foreground">
               Page {page} of {pages}
             </div>
-            <div className="flex gap-2">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                Rows
+                <select
+                  value={limit}
+                  onChange={(e) => {
+                    const next = Number(e.target.value) || 25;
+                    setLimit(next);
+                    setPage(1);
+                  }}
+                  className="bg-transparent border border-border rounded px-2 py-1 text-foreground"
+                >
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </select>
+              </div>
               <Button variant="outline" disabled={page <= 1 || loading || refreshing} onClick={() => setPage(p => Math.max(1, p - 1))}>
                 Prev
               </Button>
@@ -445,24 +461,6 @@ const AllClients = () => {
                         fontWeight: '500'
                       }}>
                         {((selectedClient as any).bloodGroup && (selectedClient as any).bloodGroup.trim() !== '') ? (selectedClient as any).bloodGroup : ''}
-                      </div>
-                    </div>
-                    <div>
-                      <label style={{color: '#D1D5DB', fontSize: '14px', display: 'block', marginBottom: '8px', fontWeight: '500'}}>
-                        Amount
-                      </label>
-                      <div style={{
-                        backgroundColor: '#4B5563',
-                        padding: '12px 16px',
-                        borderRadius: '8px',
-                        border: 'none',
-                        fontSize: '16px',
-                        color: '#F9FAFB',
-                        fontWeight: '500'
-                      }}>
-                        {((selectedClient as any).amount && (selectedClient as any).amount > 0) || ((selectedClient as any).packageAmount && (selectedClient as any).packageAmount > 0)
-                          ? `₹${((selectedClient as any).amount || (selectedClient as any).packageAmount || 0).toLocaleString('en-IN')}`
-                          : ''}
                       </div>
                     </div>
                   </div>

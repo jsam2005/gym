@@ -18,7 +18,7 @@ const Billing = () => {
   const [loading, setLoading] = useState(true);
   const [billingClients, setBillingClients] = useState<Client[]>([]);
   const [page, setPage] = useState(1);
-  const pageSize = 25;
+  const [pageSize, setPageSize] = useState(25);
   const [pendingOverdue, setPendingOverdue] = useState<{ pending: any[]; overdue: any[] }>({ pending: [], overdue: [] });
   const [gymProfile, setGymProfile] = useState({ 
     gymName: 'MS Fitness Studio', 
@@ -633,7 +633,23 @@ const Billing = () => {
                 <div className="text-sm text-muted-foreground">
                   Page {page} of {totalPages}
                 </div>
-                <div className="flex gap-2">
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    Rows
+                    <select
+                      value={pageSize}
+                      onChange={(e) => {
+                        const next = Number(e.target.value) || 25;
+                        setPageSize(next);
+                        setPage(1);
+                      }}
+                      className="bg-transparent border border-border rounded px-2 py-1 text-foreground"
+                    >
+                      <option value={25}>25</option>
+                      <option value={50}>50</option>
+                      <option value={100}>100</option>
+                    </select>
+                  </div>
                   <button
                     className="px-3 py-1 border rounded disabled:opacity-50"
                     disabled={page <= 1}
@@ -847,50 +863,6 @@ const Billing = () => {
                     Financial Details
                   </h3>
                   <div style={{display: 'flex', flexDirection: 'column', gap: '15px'}}>
-                    <div>
-                      <label style={{color: '#D1D5DB', fontSize: '14px', display: 'block', marginBottom: '8px', fontWeight: '500'}}>
-                        Total Amount
-                      </label>
-                      <div style={{
-                        backgroundColor: '#4B5563',
-                        padding: '12px 16px',
-                        borderRadius: '8px',
-                        border: 'none',
-                        fontSize: '16px',
-                        color: '#F9FAFB',
-                        fontWeight: '500',
-                        textAlign: 'left'
-                      }}>
-                        {((selectedClient.amount || selectedClient.totalAmount || selectedClient.packageAmount) && (selectedClient.amount || selectedClient.totalAmount || selectedClient.packageAmount) > 0)
-                          ? `₹${((selectedClient.amount || selectedClient.totalAmount || selectedClient.packageAmount || 0)).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
-                          : ''}
-                      </div>
-                    </div>
-                    <div>
-                      <label style={{color: '#D1D5DB', fontSize: '14px', display: 'block', marginBottom: '8px', fontWeight: '500'}}>
-                        Pending Amount
-                      </label>
-                      <div style={{
-                        backgroundColor: '#4B5563',
-                        padding: '12px 16px',
-                        borderRadius: '8px',
-                        border: 'none',
-                        fontSize: '16px',
-                        color: '#F9FAFB',
-                        fontWeight: '500',
-                        textAlign: 'left'
-                      }}>
-                        {((selectedClient.pendingAmount !== undefined && selectedClient.pendingAmount !== null && selectedClient.pendingAmount > 0)
-                          ? selectedClient.pendingAmount 
-                          : (selectedClient.balance !== undefined && selectedClient.balance !== null && selectedClient.balance > 0
-                              ? selectedClient.balance 
-                              : null))
-                          ? `₹${((selectedClient.pendingAmount !== undefined && selectedClient.pendingAmount !== null 
-                              ? selectedClient.pendingAmount 
-                              : selectedClient.balance || 0)).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
-                          : ''}
-                      </div>
-                    </div>
                     <div>
                       <label style={{color: '#D1D5DB', fontSize: '14px', display: 'block', marginBottom: '8px', fontWeight: '500'}}>
                         Remaining Duration
