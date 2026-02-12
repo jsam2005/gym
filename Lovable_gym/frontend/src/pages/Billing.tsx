@@ -96,7 +96,19 @@ const Billing = () => {
             deviceId: billingClient.deviceId || billingClient.esslUserId || '',
             contact: billingClient.contact || 'N/A',
           }))
-          .sort((a: any, b: any) => String(a.name || '').localeCompare(String(b.name || '')));
+          .sort((a: any, b: any) => {
+            const aId = a.deviceId ?? a.id ?? '';
+            const bId = b.deviceId ?? b.id ?? '';
+            const aNum = Number(aId);
+            const bNum = Number(bId);
+            const aNumOk = Number.isFinite(aNum);
+            const bNumOk = Number.isFinite(bNum);
+            if (aNumOk && bNumOk && aNum !== bNum) return aNum - bNum;
+            const aStr = String(aId);
+            const bStr = String(bId);
+            if (aStr !== bStr) return aStr.localeCompare(bStr);
+            return String(a.name || '').localeCompare(String(b.name || ''));
+          });
         setBillingClients(mergedClients);
       }
       if (pendingRes.data.success) {

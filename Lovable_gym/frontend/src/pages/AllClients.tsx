@@ -205,6 +205,10 @@ const AllClients = () => {
     navigate("/clients/add");
   };
 
+  const handleEdit = (client: Client) => {
+    navigate(`/clients/edit/${client.id}`);
+  };
+
   const handleRefresh = () => {
     fetchClients(true);
   };
@@ -252,6 +256,7 @@ const AllClients = () => {
           <GymTable 
             clients={filteredClients}
             onView={handleView}
+            onEdit={handleEdit}
             onDelete={handleDelete}
           />
           <div className="flex items-center justify-between mt-4">
