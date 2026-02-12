@@ -207,7 +207,10 @@ export const getClients = async (params: {
       )
       SELECT *
       FROM ClientData
-      ORDER BY EmployeeName ASC
+      ORDER BY
+        TRY_CONVERT(INT, EmployeeCodeInDevice) ASC,
+        EmployeeCodeInDevice ASC,
+        EmployeeId ASC
       OFFSET @Offset ROWS FETCH NEXT @Limit ROWS ONLY;
 
       SELECT COUNT(*) AS Total

@@ -15,7 +15,7 @@ const InactiveClients = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [pages, setPages] = useState(1);
-  const limit = 50;
+  const limit = 25;
 
   // Fetch inactive clients from API
   const fetchInactiveClients = useCallback(async () => {

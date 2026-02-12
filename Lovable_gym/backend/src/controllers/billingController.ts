@@ -96,7 +96,10 @@ export const getBillingClients = async (req: Request, res: Response): Promise<vo
         ) gc
         WHERE COALESCE(e.EmployeeName, '') NOT LIKE 'del_%'
           AND COALESCE(LOWER(e.Status), '') NOT IN ('deleted', 'delete')
-        ORDER BY e.EmployeeName ASC, e.EmployeeId ASC
+        ORDER BY
+          TRY_CONVERT(INT, e.EmployeeCodeInDevice) ASC,
+          e.EmployeeCodeInDevice ASC,
+          e.EmployeeId ASC
       `);
     } catch (queryError: any) {
       // If query fails (e.g., table structure issue), return empty array

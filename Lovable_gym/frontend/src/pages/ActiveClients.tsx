@@ -15,7 +15,7 @@ const ActiveClients = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [pages, setPages] = useState(1);
-  const limit = 50;
+  const limit = 25;
 
   // Fetch active clients from API
   useEffect(() => {

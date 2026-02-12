@@ -18,7 +18,7 @@ const Billing = () => {
   const [loading, setLoading] = useState(true);
   const [billingClients, setBillingClients] = useState<Client[]>([]);
   const [page, setPage] = useState(1);
-  const pageSize = 50;
+  const pageSize = 25;
   const [pendingOverdue, setPendingOverdue] = useState<{ pending: any[]; overdue: any[] }>({ pending: [], overdue: [] });
   const [gymProfile, setGymProfile] = useState({ 
     gymName: 'MS Fitness Studio', 
