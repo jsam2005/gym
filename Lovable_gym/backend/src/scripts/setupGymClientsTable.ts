@@ -30,6 +30,8 @@ async function createTableWithoutFK(pool: any): Promise<void> {
           [RemainingDate] DATETIME NULL,
           [PreferredTimings] NVARCHAR(50) NULL,
           [PaymentMode] NVARCHAR(50) NULL,
+          [BillingDate] DATETIME2 NULL,
+          [IsTrainer] BIT NOT NULL DEFAULT (0),
           [CreatedAt] DATETIME2 NOT NULL DEFAULT GETDATE(),
           [UpdatedAt] DATETIME2 NOT NULL DEFAULT GETDATE()
         );
@@ -98,6 +100,42 @@ export const setupGymClientsTable = async (): Promise<void> => {
     
     if (checkResult.recordset.length > 0) {
       console.log('✅ GymClients table already exists');
+      // Run lightweight migrations for existing installations
+      try {
+        // Add BillingDate column if missing (explicit billing start date)
+        await pool.request().query(`
+          IF COL_LENGTH('dbo.GymClients', 'BillingDate') IS NULL
+          BEGIN
+            ALTER TABLE [dbo].[GymClients] ADD [BillingDate] DATETIME2 NULL;
+            PRINT 'Added BillingDate column to GymClients';
+          END
+        `);
+
+        // Add IsTrainer column if missing (some installs already have it)
+        await pool.request().query(`
+          IF COL_LENGTH('dbo.GymClients', 'IsTrainer') IS NULL
+          BEGIN
+            ALTER TABLE [dbo].[GymClients]
+              ADD [IsTrainer] BIT NOT NULL CONSTRAINT [DF_GymClients_IsTrainer] DEFAULT (0);
+            PRINT 'Added IsTrainer column to GymClients';
+          END
+        `);
+
+        // Helpful index for latest-row lookup (safe even if duplicates exist)
+        await pool.request().query(`
+          IF NOT EXISTS (
+            SELECT * FROM sys.indexes 
+            WHERE name = 'IX_GymClients_EmployeeId_BillingDate' 
+              AND object_id = OBJECT_ID('dbo.GymClients')
+          )
+          BEGIN
+            CREATE INDEX [IX_GymClients_EmployeeId_BillingDate]
+              ON [dbo].[GymClients]([EmployeeId], [BillingDate], [UpdatedAt]);
+          END
+        `);
+      } catch (migrationError: any) {
+        console.warn('⚠️  GymClients migrations skipped:', migrationError.message);
+      }
       return;
     }
     
@@ -118,6 +156,22 @@ export const setupGymClientsTable = async (): Promise<void> => {
       // Execute the SQL script
       await pool.request().query(sqlScript);
       console.log('✅ GymClients table created successfully');
+      // Ensure latest schema additions are present even if the SQL script is outdated
+      try {
+        await pool.request().query(`
+          IF COL_LENGTH('dbo.GymClients', 'BillingDate') IS NULL
+          BEGIN
+            ALTER TABLE [dbo].[GymClients] ADD [BillingDate] DATETIME2 NULL;
+          END
+          IF COL_LENGTH('dbo.GymClients', 'IsTrainer') IS NULL
+          BEGIN
+            ALTER TABLE [dbo].[GymClients]
+              ADD [IsTrainer] BIT NOT NULL CONSTRAINT [DF_GymClients_IsTrainer] DEFAULT (0);
+          END
+        `);
+      } catch (migrationError: any) {
+        console.warn('⚠️  Post-create migrations skipped:', migrationError.message);
+      }
     } catch (scriptError: any) {
       console.warn('⚠️  SQL script execution failed, trying fallback method:', scriptError.message);
       // Try fallback creation

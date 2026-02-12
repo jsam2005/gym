@@ -17,7 +17,7 @@ const InactiveClients = () => {
   const fetchInactiveClients = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await clientAPI.getInactive();
+      const response = await clientAPI.getAll({ status: 'inactive', limit: 5000 });
       if (response.data.success) {
         // Transform API data to match the expected format
         const transformedClients = (Array.isArray(response.data.clients) ? response.data.clients : []).map((client: any, index: number) => ({

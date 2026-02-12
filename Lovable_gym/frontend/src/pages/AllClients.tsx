@@ -26,7 +26,7 @@ const AllClients = () => {
       } else {
         setLoading(true);
       }
-        const response = await clientAPI.getAll();
+        const response = await clientAPI.getAll({ limit: 5000 });
         if (response.data.success) {
           // Transform API data to match the expected format
         // Transform and deduplicate clients

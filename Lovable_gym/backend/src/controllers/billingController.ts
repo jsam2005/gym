@@ -72,14 +72,32 @@ export const getBillingClients = async (req: Request, res: Response): Promise<vo
           gc.Trainer,
           gc.PreferredTimings,
           gc.BloodGroup,
-          gc.CreatedAt as BillingDate,
+          COALESCE(gc.BillingDate, gc.CreatedAt) as BillingDate,
           gc.UpdatedAt as LastUpdated
         FROM Employees e
-        LEFT JOIN GymClients gc ON e.EmployeeId = gc.EmployeeId
-        WHERE e.EmployeeName NOT LIKE 'del_%'
-          AND LOWER(e.Status) NOT IN ('deleted', 'delete')
+        OUTER APPLY (
+          SELECT TOP 1
+            gc.TotalAmount,
+            gc.AmountPaid,
+            gc.PendingAmount,
+            gc.RemainingDate,
+            gc.PackageType,
+            gc.Months,
+            gc.PaymentMode,
+            gc.Trainer,
+            gc.PreferredTimings,
+            gc.BloodGroup,
+            gc.BillingDate,
+            gc.CreatedAt,
+            gc.UpdatedAt
+          FROM GymClients gc
+          WHERE gc.EmployeeId = e.EmployeeId
+          ORDER BY COALESCE(gc.BillingDate, gc.CreatedAt) DESC, gc.UpdatedAt DESC
+        ) gc
+        WHERE COALESCE(e.EmployeeName, '') NOT LIKE 'del_%'
+          AND COALESCE(LOWER(e.Status), '') NOT IN ('deleted', 'delete')
         ORDER BY 
-          CASE WHEN gc.CreatedAt IS NOT NULL THEN gc.CreatedAt ELSE e.DOJ END DESC
+          CASE WHEN COALESCE(gc.BillingDate, gc.CreatedAt) IS NOT NULL THEN COALESCE(gc.BillingDate, gc.CreatedAt) ELSE e.DOJ END DESC
       `);
     } catch (queryError: any) {
       // If query fails (e.g., table structure issue), return empty array

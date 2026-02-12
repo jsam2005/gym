@@ -30,12 +30,30 @@ SELECT
   gc.Trainer AS GymTrainer,
   gc.PreferredTimings AS GymPreferredTimings,
   gc.BloodGroup AS GymBloodGroup,
-  gc.CreatedAt AS GymBillingDate,
+  COALESCE(gc.BillingDate, gc.CreatedAt) AS GymBillingDate,
   gc.UpdatedAt AS GymLastUpdated,
   CASE WHEN eb.EmployeeBioId IS NOT NULL THEN 1 ELSE 0 END AS HasBiometric
 FROM Employees e
 LEFT JOIN EmployeesBio eb ON e.EmployeeId = eb.EmployeeId
-LEFT JOIN GymClients gc ON e.EmployeeId = gc.EmployeeId
+OUTER APPLY (
+  SELECT TOP 1
+    gc.TotalAmount,
+    gc.AmountPaid,
+    gc.PendingAmount,
+    gc.RemainingDate,
+    gc.PackageType,
+    gc.Months,
+    gc.PaymentMode,
+    gc.Trainer,
+    gc.PreferredTimings,
+    gc.BloodGroup,
+    gc.BillingDate,
+    gc.CreatedAt,
+    gc.UpdatedAt
+  FROM GymClients gc
+  WHERE gc.EmployeeId = e.EmployeeId
+  ORDER BY COALESCE(gc.BillingDate, gc.CreatedAt) DESC, gc.UpdatedAt DESC
+) gc
 `;
 
 // Helper function to split EmployeeName into firstName and lastName

@@ -14,6 +14,8 @@ export interface GymClientData {
   amountPaid?: number;
   pendingAmount?: number;
   remainingDate?: Date;
+  billingDate?: Date;
+  isTrainer?: boolean;
   preferredTimings?: string;
   paymentMode?: string;
 }
@@ -35,6 +37,8 @@ export const createGymClient = async (data: GymClientData): Promise<void> => {
     request.input('AmountPaid', sql.Decimal(10, 2), data.amountPaid || null);
     request.input('PendingAmount', sql.Decimal(10, 2), data.pendingAmount || null);
     request.input('RemainingDate', sql.DateTime, data.remainingDate || null);
+    request.input('BillingDate', sql.DateTime2, data.billingDate || null);
+    request.input('IsTrainer', sql.Bit, data.isTrainer ?? false);
     request.input('PreferredTimings', sql.NVarChar(50), data.preferredTimings || null);
     request.input('PaymentMode', sql.NVarChar(50), data.paymentMode || null);
     
@@ -42,12 +46,12 @@ export const createGymClient = async (data: GymClientData): Promise<void> => {
       INSERT INTO GymClients (
         EmployeeId, EmployeeCodeInDevice, BloodGroup, Months, Trainer,
         PackageType, TotalAmount, AmountPaid, PendingAmount, RemainingDate,
-        PreferredTimings, PaymentMode, CreatedAt, UpdatedAt
+        BillingDate, PreferredTimings, PaymentMode, IsTrainer, CreatedAt, UpdatedAt
       )
       VALUES (
         @EmployeeId, @EmployeeCodeInDevice, @BloodGroup, @Months, @Trainer,
         @PackageType, @TotalAmount, @AmountPaid, @PendingAmount, @RemainingDate,
-        @PreferredTimings, @PaymentMode, GETDATE(), GETDATE()
+        COALESCE(@BillingDate, GETDATE()), @PreferredTimings, @PaymentMode, @IsTrainer, GETDATE(), GETDATE()
       )
     `);
   });
@@ -86,6 +90,8 @@ export const getGymClientByEmployeeId = async (employeeId: number): Promise<GymC
           AmountPaid,
           PendingAmount,
           RemainingDate,
+          BillingDate,
+          IsTrainer,
           PreferredTimings,
           PaymentMode
         FROM GymClients
@@ -110,6 +116,8 @@ export const getGymClientByEmployeeId = async (employeeId: number): Promise<GymC
       amountPaid: (row.AmountPaid && parseFloat(row.AmountPaid) > 0) ? parseFloat(row.AmountPaid) : undefined,
       pendingAmount: (row.PendingAmount !== null && row.PendingAmount !== undefined) ? parseFloat(row.PendingAmount) : undefined,
       remainingDate: row.RemainingDate ? new Date(row.RemainingDate) : undefined,
+      billingDate: row.BillingDate ? new Date(row.BillingDate) : undefined,
+      isTrainer: row.IsTrainer !== undefined && row.IsTrainer !== null ? Boolean(row.IsTrainer) : undefined,
       preferredTimings: (row.PreferredTimings && row.PreferredTimings.trim() !== '') ? row.PreferredTimings : undefined,
       paymentMode: (row.PaymentMode && row.PaymentMode.trim() !== '') ? row.PaymentMode : undefined,
     };
@@ -167,6 +175,14 @@ export const updateGymClient = async (employeeId: number, updates: Partial<GymCl
     updateParams['RemainingDate'] = updates.remainingDate || null;
     updateFields.push('RemainingDate = @RemainingDate');
   }
+  if (updates.billingDate !== undefined) {
+    updateParams['BillingDate'] = updates.billingDate || null;
+    updateFields.push('BillingDate = @BillingDate');
+  }
+  if (updates.isTrainer !== undefined) {
+    updateParams['IsTrainer'] = updates.isTrainer;
+    updateFields.push('IsTrainer = @IsTrainer');
+  }
   if (updates.preferredTimings !== undefined) {
     updateParams['PreferredTimings'] = updates.preferredTimings || null;
     updateFields.push('PreferredTimings = @PreferredTimings');
@@ -194,10 +210,10 @@ export const updateGymClient = async (employeeId: number, updates: Partial<GymCl
       IF NOT EXISTS (SELECT 1 FROM GymClients WHERE EmployeeId = @EmployeeId)
       BEGIN
         INSERT INTO GymClients (
-          EmployeeId, EmployeeCodeInDevice, CreatedAt, UpdatedAt
+          EmployeeId, EmployeeCodeInDevice, BillingDate, IsTrainer, CreatedAt, UpdatedAt
         )
         VALUES (
-          @EmployeeId, @EmployeeCodeInDeviceFallback, GETDATE(), GETDATE()
+          @EmployeeId, @EmployeeCodeInDeviceFallback, NULL, 0, GETDATE(), GETDATE()
         )
       END
     `);
@@ -228,6 +244,12 @@ export const updateGymClient = async (employeeId: number, updates: Partial<GymCl
     }
     if (updateParams['RemainingDate'] !== undefined) {
       request.input('RemainingDate', sql.DateTime, updateParams['RemainingDate']);
+    }
+    if (updateParams['BillingDate'] !== undefined) {
+      request.input('BillingDate', sql.DateTime2, updateParams['BillingDate']);
+    }
+    if (updateParams['IsTrainer'] !== undefined) {
+      request.input('IsTrainer', sql.Bit, updateParams['IsTrainer']);
     }
     if (updateParams['PreferredTimings'] !== undefined) {
       request.input('PreferredTimings', sql.NVarChar(50), updateParams['PreferredTimings']);
@@ -310,8 +332,10 @@ export const syncGymClientsForAllEmployees = async (): Promise<{ created: number
                 AmountPaid, 
                 PendingAmount, 
                 RemainingDate,
+                BillingDate,
                 PreferredTimings, 
                 PaymentMode, 
+                IsTrainer,
                 CreatedAt, 
                 UpdatedAt
               )
@@ -326,8 +350,10 @@ export const syncGymClientsForAllEmployees = async (): Promise<{ created: number
                 NULL, 
                 NULL, 
                 NULL,
+                NULL,
                 NULL, 
                 NULL, 
+                0,
                 GETDATE(), 
                 GETDATE()
               )

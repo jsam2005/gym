@@ -176,6 +176,7 @@ export const createClient = async (req: Request, res: Response): Promise<void> =
           amountPaid: normalizedPayload.amountPaid !== undefined ? normalizedPayload.amountPaid : undefined,
           pendingAmount: normalizedPayload.pendingAmount !== undefined ? normalizedPayload.pendingAmount : undefined,
           remainingDate: normalizedPayload.packageEndDate ? new Date(normalizedPayload.packageEndDate) : undefined,
+          billingDate: normalizedPayload.packageStartDate ? new Date(normalizedPayload.packageStartDate) : undefined,
           preferredTimings: (req.body as any).timings || undefined,
           paymentMode: (req.body as any).paymentMode || undefined,
         });
@@ -201,6 +202,7 @@ export const createClient = async (req: Request, res: Response): Promise<void> =
             amountPaid: normalizedPayload.amountPaid,
             pendingAmount: normalizedPayload.pendingAmount,
             remainingDate: normalizedPayload.packageEndDate ? new Date(normalizedPayload.packageEndDate) : undefined,
+            billingDate: normalizedPayload.packageStartDate ? new Date(normalizedPayload.packageStartDate) : undefined,
             preferredTimings: (req.body as any).timings,
             paymentMode: (req.body as any).paymentMode,
           });
@@ -553,6 +555,9 @@ export const updateClient = async (req: Request, res: Response): Promise<void> =
             amountPaid: updates.amountPaid,
             pendingAmount: updates.pendingAmount,
             remainingDate: updates.packageEndDate ? new Date(updates.packageEndDate) : undefined,
+            billingDate: (updates as any).billingDate
+              ? new Date((updates as any).billingDate)
+              : (updates.packageStartDate ? new Date(updates.packageStartDate as any) : undefined),
             preferredTimings: (updates as any).timings,
             paymentMode: (updates as any).paymentMode,
           });

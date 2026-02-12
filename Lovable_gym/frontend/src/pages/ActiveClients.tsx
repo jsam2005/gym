@@ -18,7 +18,7 @@ const ActiveClients = () => {
     const fetchActiveClients = async () => {
       try {
         setLoading(true);
-        const response = await clientAPI.getActive();
+        const response = await clientAPI.getAll({ status: 'active', limit: 5000 });
         if (response.data.success) {
           // Transform API data to match the expected format
           const transformedClients = response.data.clients.map((client: any, index: number) => ({
