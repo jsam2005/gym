@@ -66,7 +66,7 @@ export function GymTable({
             <TableHead>Billing Date</TableHead>
             <TableHead>Duration</TableHead>
             {showRemainingDuration && <TableHead>Remaining Duration</TableHead>}
-            <TableHead className="w-24">Action</TableHead>
+            <TableHead className="w-[7.5rem] min-w-[7.5rem]">Action</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>

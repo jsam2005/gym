@@ -126,6 +126,11 @@ const ActiveClients = () => {
     setIsDialogOpen(true);
   };
 
+  const handleEdit = (client: Client) => {
+    if (client?.id == null) return;
+    navigate(`/clients/edit/${client.id}`);
+  };
+
   const handleDelete = (client: Client) => {
     if (confirm(`Are you sure you want to delete ${client.name}?`)) {
       console.log("Delete client:", client);
@@ -153,6 +158,7 @@ const ActiveClients = () => {
           <GymTable 
             clients={filteredClients}
             onView={handleView}
+            onEdit={handleEdit}
             onDelete={handleDelete}
           />
           <div className="flex items-center justify-between mt-4">

@@ -227,7 +227,8 @@ const Billing = () => {
   };
 
   const handleEdit = (client: Client) => {
-    navigate(`/clients/edit/${client.id}`);
+    if (client?.id == null) return;
+    navigate(`/clients/edit/${String(client.id)}`);
   };
 
   const handleDownloadBill = (client: Client) => {

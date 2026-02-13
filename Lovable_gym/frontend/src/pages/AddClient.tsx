@@ -5,13 +5,19 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useToast } from "@/components/ui/use-toast";
 import { clientAPI, packageAPI } from "@/lib/api";
 
+type EditState = { editId: string; editClient: any };
+
 const AddClient = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
+  const editState = location.state as EditState | null;
+  const isEditMode = Boolean(editState?.editId && editState?.editClient);
+
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -41,6 +47,50 @@ const AddClient = () => {
 
   const [submitting, setSubmitting] = useState(false);
 
+  // Prefill form when in edit mode (navigated from EditClient with state)
+  useEffect(() => {
+    if (!editState?.editClient) return;
+    const c = editState.editClient;
+    const packageEnd = c.packageEndDate || c.remainingDate;
+    const endDateStr = packageEnd
+      ? (packageEnd instanceof Date ? packageEnd : new Date(packageEnd)).toISOString().slice(0, 10)
+      : "";
+    let fromTime = "";
+    let fromAmPm = "AM";
+    let toTime = "";
+    let toAmPm = "PM";
+    const timings = (c.preferredTimings || "").trim();
+    if (timings) {
+      const match = timings.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?\s*-\s*(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
+      if (match) {
+        fromTime = `${match[1].padStart(2, "0")}:${match[2]}`;
+        fromAmPm = (match[3] || "AM").toUpperCase();
+        toTime = `${match[4].padStart(2, "0")}:${match[5]}`;
+        toAmPm = (match[6] || "PM").toUpperCase();
+      }
+    }
+    setFormData({
+      firstName: (c.firstName ?? "").toString(),
+      lastName: (c.lastName ?? "").toString(),
+      contact: (c.phone ?? "").toString(),
+      email: (c.email ?? "").toString(),
+      address: (c.address ?? "").toString(),
+      gender: (c.gender ?? "").toString(),
+      bloodGroup: (c.bloodGroup ?? "").toString(),
+      months: (c.months != null ? String(c.months) : ""),
+      package: (c.packageType ?? "").toString(),
+      totalAmount: (c.packageAmount != null || c.totalAmount != null) ? String(c.packageAmount ?? c.totalAmount ?? "") : "",
+      amount: (c.amountPaid != null ? String(c.amountPaid) : ""),
+      pendingAmount: (c.pendingAmount != null ? String(c.pendingAmount) : ""),
+      remainingDate: endDateStr,
+      fromTime,
+      fromAmPm,
+      toTime,
+      toAmPm,
+      paymentMode: (c.paymentMode ?? "").toString(),
+    });
+  }, [editState?.editClient]);
+
   // Fetch packages on component mount
   useEffect(() => {
     const fetchPackages = async () => {
@@ -60,61 +110,67 @@ const AddClient = () => {
     fetchPackages();
   }, []);
 
+  const buildPayload = () => ({
+    firstName: formData.firstName || "",
+    lastName: formData.lastName || "",
+    phone: formData.contact || undefined,
+    email: formData.email || undefined,
+    address: formData.address || undefined,
+    gender: formData.gender || undefined,
+    dateOfBirth: new Date(),
+    emergencyContact: {
+      name: "Emergency Contact",
+      phone: "0000000000",
+      relation: "Family"
+    },
+    packageType: formData.package || undefined,
+    packageStartDate: new Date(),
+    packageEndDate: formData.remainingDate ? new Date(formData.remainingDate) : 
+                   new Date(Date.now() + (parseInt(formData.months || "1") * 30 * 24 * 60 * 60 * 1000)),
+    packageAmount: formData.totalAmount ? parseFloat(formData.totalAmount) : undefined,
+    amountPaid: formData.amount ? parseFloat(formData.amount) : undefined,
+    bloodGroup: formData.bloodGroup || undefined,
+    months: formData.months ? parseInt(formData.months) : undefined,
+    timings: formData.fromTime && formData.toTime 
+      ? `${formData.fromTime} ${formData.fromAmPm} - ${formData.toTime} ${formData.toAmPm}`
+      : undefined,
+    paymentMode: formData.paymentMode || undefined,
+    ...(formData.pendingAmount !== "" && formData.pendingAmount != null
+      ? { pendingAmount: parseFloat(formData.pendingAmount) }
+      : {}),
+  });
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // All fields are optional - no validation required
-
     setSubmitting(true);
     try {
-      // Create client via API - this will:
-      // 1. Create employee in Employees table (name + phone only)
-      // 2. Create gym client in GymClients table (additional info - optional)
-      // 3. Register user on ESSL device
-      const response = await clientAPI.create({
-        firstName: formData.firstName || "",
-        lastName: formData.lastName || "",
-        phone: formData.contact || undefined,
-        email: formData.email || undefined,
-        address: formData.address || undefined,
-        gender: formData.gender || undefined,
-        dateOfBirth: new Date(),
-        emergencyContact: {
-          name: "Emergency Contact",
-          phone: "0000000000",
-          relation: "Family"
-        },
-        packageType: formData.package || undefined,
-        packageStartDate: new Date(),
-        packageEndDate: formData.remainingDate ? new Date(formData.remainingDate) : 
-                       new Date(Date.now() + (parseInt(formData.months || "1") * 30 * 24 * 60 * 60 * 1000)),
-        packageAmount: formData.totalAmount ? parseFloat(formData.totalAmount) : undefined,
-        amountPaid: formData.amount ? parseFloat(formData.amount) : undefined,
-        // Additional fields for GymClients table - only send if provided
-        bloodGroup: formData.bloodGroup || undefined,
-        months: formData.months ? parseInt(formData.months) : undefined,
-        timings: formData.fromTime && formData.toTime 
-          ? `${formData.fromTime} ${formData.fromAmPm} - ${formData.toTime} ${formData.toAmPm}`
-          : undefined,
-        paymentMode: formData.paymentMode || undefined,
-      });
+      if (isEditMode && editState?.editId) {
+        await clientAPI.update(editState.editId, buildPayload());
+        const clientName = `${formData.firstName || ''} ${formData.lastName || ''}`.trim() || 'Client';
+        toast({
+          title: "Client Updated",
+          description: `${clientName} has been updated.`,
+        });
+        window.dispatchEvent(new Event('clientUpdated'));
+        navigate("/clients");
+        return;
+      }
 
+      const response = await clientAPI.create(buildPayload());
       const deviceStatus = response.data.deviceRegistered 
         ? "✅ Registered on device" 
         : `⚠️ Device: ${response.data.deviceMessage || 'Not registered'}`;
-
       const clientName = `${formData.firstName || ''} ${formData.lastName || ''}`.trim() || 'Client';
       toast({
         title: "Client Added Successfully",
         description: `${clientName} has been added. ${deviceStatus}. User ID: ${response.data.employeeCodeInDevice}`,
       });
-
-      // Navigate back to clients list
       navigate("/clients");
     } catch (error: any) {
-      console.error("Error creating client:", error);
+      console.error(isEditMode ? "Error updating client:" : "Error creating client:", error);
       toast({
         title: "Error",
-        description: error.response?.data?.message || "Failed to add client",
+        description: error.response?.data?.message || (isEditMode ? "Failed to update client" : "Failed to add client"),
         variant: "destructive"
       });
     } finally {
@@ -126,7 +182,7 @@ const AddClient = () => {
     <div className="w-full min-h-screen bg-transparent p-4 flex justify-center">
       <div className="w-full max-w-7xl">
       <PageHeader 
-        title="Add New Client" 
+        title={isEditMode ? "Edit Client" : "Add New Client"} 
         actionButton={{
           label: "Back to Clients",
           onClick: () => navigate("/clients")

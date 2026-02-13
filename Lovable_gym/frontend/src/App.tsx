@@ -9,6 +9,7 @@ import AllClients from "./pages/AllClients";
 import ActiveClients from "./pages/ActiveClients";
 import InactiveClients from "./pages/InactiveClients";
 import AddClient from "./pages/AddClient";
+import EditClient from "./pages/EditClient";
 import Packages from "./pages/Packages";
 import Billing from "./pages/Billing";
 import Profile from "./pages/Profile";
@@ -37,6 +38,7 @@ const App = () => (
               <Route path="/clients/active" element={<ActiveClients />} />
               <Route path="/clients/inactive" element={<InactiveClients />} />
               <Route path="/clients/add" element={<AddClient />} />
+              <Route path="/clients/edit/:id" element={<EditClient />} />
               <Route path="/packages" element={<Packages />} />
               <Route path="/billing" element={<Billing />} />
               <Route path="/biometric" element={<BiometricAccess />} />
