@@ -18,6 +18,7 @@ export interface Client {
   status: "active" | "inactive" | "suspended";
   billingDate: string;
   duration: string;
+  endDate?: string;
   amount?: number;
   balance?: number;
   remainingDuration?: string;
@@ -64,6 +65,7 @@ export function GymTable({
             {showBalance && <TableHead>Balance</TableHead>}
             <TableHead>Status</TableHead>
             <TableHead>Billing Date</TableHead>
+            <TableHead>End Date</TableHead>
             <TableHead>Duration</TableHead>
             {showRemainingDuration && <TableHead>Remaining Duration</TableHead>}
             <TableHead className="w-[7.5rem] min-w-[7.5rem]">Action</TableHead>
@@ -89,6 +91,7 @@ export function GymTable({
                 <StatusBadge status={client.status} />
               </TableCell>
               <TableCell>{client.billingDate}</TableCell>
+              <TableCell>{client.endDate || "N/A"}</TableCell>
               <TableCell>{client.duration}</TableCell>
               {showRemainingDuration && (
                 <TableCell>{client.remainingDuration}</TableCell>

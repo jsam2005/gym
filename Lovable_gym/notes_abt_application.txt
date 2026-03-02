@@ -1,0 +1,10 @@
+commands for pull from client side
+
+ Stash your local changes
+>> git stash
+>> 
+>> # Pull the updates
+>> git pull origin main
+>> 
+>> # Restore your local changes
+>> git stash pop

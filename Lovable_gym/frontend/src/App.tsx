@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
 import { GymSidebar } from "@/components/GymSidebar";
 import Dashboard from "./pages/Dashboard";
 import AllClients from "./pages/AllClients";
@@ -34,11 +34,13 @@ const App = () => (
           <main className="flex-1 overflow-auto bg-transparent text-foreground main-content">
             <Routes>
               <Route path="/" element={<Dashboard />} />
-              <Route path="/clients" element={<AllClients />} />
-              <Route path="/clients/active" element={<ActiveClients />} />
-              <Route path="/clients/inactive" element={<InactiveClients />} />
-              <Route path="/clients/add" element={<AddClient />} />
-              <Route path="/clients/edit/:id" element={<EditClient />} />
+              <Route path="/clients" element={<Outlet />}>
+                <Route index element={<AllClients />} />
+                <Route path="active" element={<ActiveClients />} />
+                <Route path="inactive" element={<InactiveClients />} />
+                <Route path="add" element={<AddClient />} />
+                <Route path="edit/:id" element={<EditClient />} />
+              </Route>
               <Route path="/packages" element={<Packages />} />
               <Route path="/billing" element={<Billing />} />
               <Route path="/biometric" element={<BiometricAccess />} />

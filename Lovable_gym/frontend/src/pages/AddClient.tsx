@@ -36,7 +36,8 @@ const AddClient = () => {
     fromAmPm: "AM",
     toTime: "",
     toAmPm: "PM",
-    paymentMode: ""
+    paymentMode: "",
+    status: "active",
   });
   const [packages, setPackages] = useState<any[]>([]);
   const [loadingPackages, setLoadingPackages] = useState(true);
@@ -88,6 +89,7 @@ const AddClient = () => {
       toTime,
       toAmPm,
       paymentMode: (c.paymentMode ?? "").toString(),
+      status: (c.status ?? "active").toString(),
     });
   }, [editState?.editClient]);
 
@@ -138,6 +140,7 @@ const AddClient = () => {
     ...(formData.pendingAmount !== "" && formData.pendingAmount != null
       ? { pendingAmount: parseFloat(formData.pendingAmount) }
       : {}),
+    status: formData.status || undefined,
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -498,6 +501,25 @@ const AddClient = () => {
             </div>
           </div>
 
+          {/* Status Row */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div>
+              <Label htmlFor="status" className="text-sm font-medium mb-2 block">Status</Label>
+              <Select
+                value={formData.status}
+                onValueChange={(value) => handleInputChange("status", value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
           {/* Action Buttons */}
           <div className="flex gap-4 justify-end">
             <Button 
@@ -513,7 +535,9 @@ const AddClient = () => {
               className="bg-primary hover:bg-primary/90 text-white px-8"
               disabled={submitting}
             >
-              {submitting ? "Adding Client..." : "Add Client"}
+              {submitting 
+                ? (isEditMode ? "Updating Client..." : "Adding Client...")
+                : (isEditMode ? "Update Client" : "Add Client")}
             </Button>
           </div>
         </form>

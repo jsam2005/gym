@@ -6,6 +6,48 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { clientAPI } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 
+const formatDisplayDate = (date: Date | null) =>
+  date
+    ? date.toLocaleDateString("en-GB", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      })
+    : "N/A";
+
+const calculateEndDate = (
+  packageStartDate?: string | null,
+  durationValue?: number | string | null
+) => {
+  if (!packageStartDate) return "N/A";
+
+  let months: number | null = null;
+
+  if (typeof durationValue === "number") {
+    months = durationValue;
+  } else if (typeof durationValue === "string") {
+    const direct = Number(durationValue.trim());
+    if (Number.isFinite(direct) && direct > 0) {
+      months = direct;
+    } else {
+      const match = durationValue.match(/(\d+)\s*month/i);
+      if (match && match[1]) {
+        months = Number(match[1]);
+      }
+    }
+  }
+
+  if (!months || months <= 0) return "N/A";
+
+  const start = new Date(packageStartDate);
+  if (Number.isNaN(start.getTime())) return "N/A";
+
+  const end = new Date(start);
+  end.setMonth(end.getMonth() + months);
+
+  return formatDisplayDate(end);
+};
+
 const ActiveClients = () => {
   const navigate = useNavigate();
   const [clients, setClients] = useState<Client[]>([]);
@@ -32,15 +74,12 @@ const ActiveClients = () => {
             contact: client.phone || '',
             status: client.status || 'inactive',
             billingDate: client.packageStartDate
-              ? new Date(client.packageStartDate).toLocaleDateString('en-GB', {
-                  day: 'numeric',
-                  month: 'long',
-                  year: 'numeric',
-                })
+              ? formatDisplayDate(new Date(client.packageStartDate))
               : 'N/A',
             duration: (client.months && Number(client.months) > 0)
               ? `${Number(client.months)} month${Number(client.months) > 1 ? 's' : ''}`
               : (client.packageType || 'N/A'),
+            endDate: calculateEndDate(client.packageStartDate, client.months || client.packageType),
           })).sort((a: any, b: any) => {
             const aId = a.deviceId ?? a.id ?? '';
             const bId = b.deviceId ?? b.id ?? '';
@@ -67,6 +106,13 @@ const ActiveClients = () => {
     };
 
     fetchActiveClients();
+
+    const handleClientUpdate = () => {
+      fetchActiveClients();
+    };
+
+    window.addEventListener('clientUpdated', handleClientUpdate);
+    return () => window.removeEventListener('clientUpdated', handleClientUpdate);
   }, [page, searchTerm, limit]);
 
   const filteredClients = clients;
@@ -87,13 +133,13 @@ const ActiveClients = () => {
           gender: freshClient.gender || '',
           status: freshClient.status || client.status,
           billingDate: freshClient.packageStartDate 
-            ? new Date(freshClient.packageStartDate).toLocaleDateString('en-GB', { 
-                day: 'numeric', 
-                month: 'long', 
-                year: 'numeric' 
-              })
+            ? formatDisplayDate(new Date(freshClient.packageStartDate))
             : client.billingDate,
           duration: freshClient.packageType || freshClient.duration || client.duration,
+          endDate: calculateEndDate(
+            freshClient.packageStartDate || null,
+            freshClient.months || freshClient.duration || client.duration
+          ),
           // Include GymClients data - explicitly set to null if not present
           bloodGroup: freshClient.bloodGroup || null,
           amount: (freshClient.packageAmount || freshClient.totalAmount) ? (freshClient.packageAmount || freshClient.totalAmount) : null,
@@ -339,6 +385,22 @@ const ActiveClients = () => {
                         fontWeight: '500'
                       }}>
                         {selectedClient.billingDate || ''}
+                      </div>
+                    </div>
+                    <div>
+                      <label style={{color: '#D1D5DB', fontSize: '14px', display: 'block', marginBottom: '8px', fontWeight: '500'}}>
+                        End Date
+                      </label>
+                      <div style={{
+                        backgroundColor: '#4B5563',
+                        padding: '12px 16px',
+                        borderRadius: '8px',
+                        border: 'none',
+                        fontSize: '16px',
+                        color: '#F9FAFB',
+                        fontWeight: '500'
+                      }}>
+                        {(selectedClient as any).endDate || ''}
                       </div>
                     </div>
                     <div>
