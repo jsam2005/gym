@@ -507,8 +507,8 @@ const AddClient = () => {
             </div>
           </div>
 
-          {/* Financial Details Row */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          {/* Financial Details Row (end date is calculated, not editable) */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
             <div>
               <Label htmlFor="amount" className="text-sm font-medium mb-2 block">Amount</Label>
               <Input
@@ -525,15 +525,6 @@ const AddClient = () => {
                 placeholder="Enter pending amount"
                 value={formData.pendingAmount}
                 onChange={(e) => handleInputChange("pendingAmount", e.target.value)}
-              />
-            </div>
-            <div>
-              <Label htmlFor="remainingDate" className="text-sm font-medium mb-2 block">Remaining Date</Label>
-              <Input
-                id="remainingDate"
-                type="date"
-                value={formData.remainingDate}
-                readOnly
               />
             </div>
           </div>
