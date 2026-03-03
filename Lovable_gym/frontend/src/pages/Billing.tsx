@@ -4,11 +4,51 @@ import { useNavigate } from "react-router-dom";
 import { PageHeader } from "@/components/PageHeader";
 import { GymTable, Client } from "@/components/GymTable";
 import { KPICard } from "@/components/KPICard";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { DollarSign, Users, AlertCircle, Edit } from "lucide-react";
+import { DollarSign, Users, AlertCircle } from "lucide-react";
 import { billingAPI, clientAPI, settingsAPI } from "@/lib/api";
+
+const formatDisplayDate = (date: Date | null) =>
+  date
+    ? date.toLocaleDateString("en-GB", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      })
+    : "N/A";
+
+const calculateEndDate = (
+  packageStartDate?: string | null,
+  durationValue?: number | string | null
+) => {
+  if (!packageStartDate) return "N/A";
+
+  let months: number | null = null;
+
+  if (typeof durationValue === "number") {
+    months = durationValue;
+  } else if (typeof durationValue === "string") {
+    const direct = Number(durationValue.trim());
+    if (Number.isFinite(direct) && direct > 0) {
+      months = direct;
+    } else {
+      const match = durationValue.match(/(\d+)\s*month/i);
+      if (match && match[1]) {
+        months = Number(match[1]);
+      }
+    }
+  }
+
+  if (!months || months <= 0) return "N/A";
+
+  const start = new Date(packageStartDate);
+  if (Number.isNaN(start.getTime())) return "N/A";
+
+  const end = new Date(start);
+  end.setMonth(end.getMonth() + months);
+
+  return formatDisplayDate(end);
+};
 
 const Billing = () => {
   const navigate = useNavigate();
@@ -19,7 +59,6 @@ const Billing = () => {
   const [billingClients, setBillingClients] = useState<Client[]>([]);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
-  const [pendingOverdue, setPendingOverdue] = useState<{ pending: any[]; overdue: any[] }>({ pending: [], overdue: [] });
   const [gymProfile, setGymProfile] = useState({ 
     gymName: 'MS Fitness Studio', 
     gymAddress: 'Food street, 1st floor, thalambur, Thalambur Rd, Navalur, Chennai, Tamil Nadu 600130',
@@ -65,40 +104,85 @@ const Billing = () => {
     return () => window.removeEventListener('clientUpdated', handleClientUpdate);
   }, []);
 
-  // Listen for client update events to refresh billing data
-  useEffect(() => {
-    const handleClientUpdate = () => {
-      fetchBillingData();
-    };
-    
-    window.addEventListener('clientUpdated', handleClientUpdate);
-    return () => window.removeEventListener('clientUpdated', handleClientUpdate);
-  }, []);
-
   const fetchBillingData = async () => {
     try {
       setLoading(true);
       
-      // Billing API already includes GymClients amounts; avoid extra /clients calls
-      const [clientsRes, pendingRes, summaryRes] = await Promise.all([
+      // Get base client data plus billing overlays so tables stay in sync with All Clients
+      const [clientsRes, billingRes, summaryRes] = await Promise.all([
+        clientAPI.getAll({ page: 1, limit: 1000 }),
         billingAPI.getClients(),
-        billingAPI.getPendingOverdue(),
         billingAPI.getSummary(),
       ]);
 
-      // Normalize, sort ascending by name
+      // Build quick lookup for billing amounts by client id
+      const billingById: Record<string, any> = {};
+      if (billingRes.data?.success && Array.isArray(billingRes.data.data)) {
+        for (const b of billingRes.data.data) {
+          const id = b.id ?? b.clientId ?? b._id;
+          if (id != null) billingById[String(id)] = b;
+        }
+      }
+
+      // Transform clients exactly like AllClients, then overlay billing amounts/balances
       let mergedClients: any[] = [];
-      if (clientsRes.data.success) {
-        mergedClients = (clientsRes.data.data || [])
-          .map((billingClient: any) => ({
-            ...billingClient,
-            id: billingClient.id,
-            deviceId: billingClient.deviceId || billingClient.esslUserId || '',
-            contact: billingClient.contact || 'N/A',
-          }))
+      if (clientsRes.data.success && Array.isArray(clientsRes.data.clients)) {
+        mergedClients = clientsRes.data.clients
+          .map((client: any, index: number) => {
+            const id = client.id || client._id || `client-${index}`;
+            const billing = billingById[String(id)] || {};
+
+            const baseClient = {
+              id,
+              deviceId: client.esslUserId || client.employeeCodeInDevice || client.deviceId || "",
+              name: `${client.firstName || ""} ${client.lastName || ""}`.trim() || client.name || "Unknown",
+              contact: client.phone || client.contact || "N/A",
+              status: client.status || billing.status || "inactive",
+              billingDate: client.packageStartDate
+                ? formatDisplayDate(new Date(client.packageStartDate))
+                : "N/A",
+              duration:
+                client.months && Number(client.months) > 0
+                  ? `${Number(client.months)} month${Number(client.months) > 1 ? "s" : ""}`
+                  : client.packageType || billing.packageType || "N/A",
+              endDate: client.packageEndDate || billing.packageEndDate
+                ? formatDisplayDate(new Date(client.packageEndDate || billing.packageEndDate))
+                : calculateEndDate(
+                    client.packageStartDate || billing.packageStartDate,
+                    client.months || client.packageType || billing.months || billing.packageType
+                  ),
+            };
+
+            const amount =
+              billing.amount ??
+              billing.totalAmount ??
+              billing.packageAmount ??
+              client.packageAmount ??
+              client.totalAmount ??
+              0;
+
+            const pending =
+              billing.pendingAmount ??
+              billing.balance ??
+              client.pendingAmount ??
+              0;
+
+            const balance =
+              billing.balance ??
+              billing.pendingAmount ??
+              client.pendingAmount ??
+              0;
+
+            return {
+              ...baseClient,
+              amount: typeof amount === "number" ? amount : parseFloat(String(amount)) || 0,
+              pendingAmount: typeof pending === "number" ? pending : parseFloat(String(pending)) || 0,
+              balance: typeof balance === "number" ? balance : parseFloat(String(balance)) || 0,
+            };
+          })
           .sort((a: any, b: any) => {
-            const aId = a.deviceId ?? a.id ?? '';
-            const bId = b.deviceId ?? b.id ?? '';
+            const aId = a.deviceId ?? a.id ?? "";
+            const bId = b.deviceId ?? b.id ?? "";
             const aNum = Number(aId);
             const bNum = Number(bId);
             const aNumOk = Number.isFinite(aNum);
@@ -107,27 +191,25 @@ const Billing = () => {
             const aStr = String(aId);
             const bStr = String(bId);
             if (aStr !== bStr) return aStr.localeCompare(bStr);
-            return String(a.name || '').localeCompare(String(b.name || ''));
+            return String(a.name || "").localeCompare(String(b.name || ""));
           });
+
         setBillingClients(mergedClients);
       }
-      if (pendingRes.data.success) {
-        setPendingOverdue({
-          pending: (pendingRes.data.data.pending || []).slice().sort((a: any, b: any) => String(a.name || '').localeCompare(String(b.name || ''))),
-          overdue: (pendingRes.data.data.overdue || []).slice().sort((a: any, b: any) => String(a.name || '').localeCompare(String(b.name || ''))),
-        });
-      }
       
-      // Calculate totals from merged client data (uses updated pendingAmount from client data)
+      // Calculate totals from merged client data (uses updated pendingAmount)
       const totalAmount = mergedClients.reduce((sum: number, c: any) => {
         const amount = c.amount || c.totalAmount || c.packageAmount || 0;
         return sum + (typeof amount === 'number' ? amount : parseFloat(String(amount)) || 0);
       }, 0);
       
       const totalPending = mergedClients.reduce((sum: number, c: any) => {
-        const pending = c.pendingAmount !== undefined && c.pendingAmount !== null 
-          ? c.pendingAmount 
-          : (c.balance !== undefined && c.balance !== null ? c.balance : 0);
+        const pending =
+          c.pendingAmount !== undefined && c.pendingAmount !== null
+            ? c.pendingAmount
+            : c.balance !== undefined && c.balance !== null
+              ? c.balance
+              : 0;
         return sum + (typeof pending === 'number' ? pending : parseFloat(String(pending)) || 0);
       }, 0);
       
@@ -224,11 +306,6 @@ const Billing = () => {
       setSelectedClient(client);
       setIsDialogOpen(true);
     }
-  };
-
-  const handleEdit = (client: Client) => {
-    if (client?.id == null) return;
-    navigate(`/clients/edit/${String(client.id)}`);
   };
 
   const handleDownloadBill = (client: Client) => {
@@ -610,130 +687,61 @@ const Billing = () => {
         />
       </div>
 
-      {/* Billing Tabs */}
-      <Tabs defaultValue="clients" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="clients">Client Billing</TabsTrigger>
-          <TabsTrigger value="pending">Pending ({pendingOverdue.pending.length})</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="clients">
-          {loading ? (
-            <div className="gym-card p-8 text-center text-gray-500">Loading billing data...</div>
-          ) : (
-            <>
-              <GymTable 
-                clients={pagedClients}
-                showAmount={true}
-                showBalance={true}
-                onView={handleView}
-                onEdit={handleEdit}
-                onDownload={handleDownloadBill}
-              />
-              <div className="flex items-center justify-between mt-4">
-                <div className="text-sm text-muted-foreground">
-                  Page {page} of {totalPages}
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    Rows
-                    <select
-                      value={pageSize}
-                      onChange={(e) => {
-                        const next = Number(e.target.value) || 25;
-                        setPageSize(next);
-                        setPage(1);
-                      }}
-                      className="bg-transparent border border-border rounded px-2 py-1 text-foreground"
-                    >
-                      <option value={25}>25</option>
-                      <option value={50}>50</option>
-                      <option value={100}>100</option>
-                    </select>
-                  </div>
-                  <button
-                    className="px-3 py-1 border rounded disabled:opacity-50"
-                    disabled={page <= 1}
-                    onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  >
-                    Prev
-                  </button>
-                  <button
-                    className="px-3 py-1 border rounded disabled:opacity-50"
-                    disabled={page >= totalPages}
-                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  >
-                    Next
-                  </button>
-                </div>
-              </div>
-            </>
-          )}
-        </TabsContent>
-
-        <TabsContent value="pending">
-          <div className="gym-card overflow-hidden">
-            <div className="p-6 border-b bg-white shadow-sm">
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="text-3xl font-extrabold text-gray-900">Pending Payments</h3>
-                <Badge variant="secondary" className="bg-orange-500 text-white px-4 py-2 text-base font-bold">
-                  {pendingOverdue.pending.length} {pendingOverdue.pending.length === 1 ? 'Client' : 'Clients'}
-                </Badge>
-              </div>
-              <p className="text-lg font-semibold text-gray-700 mt-3">Clients with pending amounts and future due dates</p>
+      {/* Client Billing Table (pending list removed) */}
+      {loading ? (
+        <div className="gym-card p-8 text-center text-gray-500">Loading billing data...</div>
+      ) : (
+        <>
+          <GymTable
+            clients={pagedClients}
+            showAmount={true}
+            showBalance={true}
+            onView={handleView}
+            onEdit={(client) => {
+              if (client?.id == null) return;
+              navigate(`/clients/edit/${String(client.id)}`);
+            }}
+            onDownload={handleDownloadBill}
+          />
+          <div className="flex items-center justify-between mt-4">
+            <div className="text-sm text-muted-foreground">
+              Page {page} of {totalPages}
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b bg-gray-100">
-                    <th className="text-left p-4 font-semibold text-gray-700">Client Name</th>
-                    <th className="text-left p-4 font-semibold text-gray-700">Contact</th>
-                    <th className="text-right p-4 font-semibold text-gray-700">Pending Amount</th>
-                    <th className="text-left p-4 font-semibold text-gray-700">Due Date</th>
-                    <th className="text-center p-4 font-semibold text-gray-700">Days Remaining</th>
-                    <th className="text-left p-4 font-semibold text-gray-700">Package</th>
-                    <th className="text-center p-4 font-semibold text-gray-700">Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {pendingOverdue.pending.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} className="p-8 text-center text-gray-500">No pending payments</td>
-                    </tr>
-                  ) : (
-                    pendingOverdue.pending.map((client) => (
-                      <tr key={client.id} className="border-b hover:bg-gray-50">
-                        <td className="p-4 font-medium">{client.name || 'N/A'}</td>
-                        <td className="p-4">{client.contact || 'N/A'}</td>
-                        <td className="p-4 text-right font-medium">₹{((client.pendingAmount || 0)).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</td>
-                        <td className="p-4">{client.remainingDate ? new Date(client.remainingDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : 'N/A'}</td>
-                        <td className="p-4 text-center">
-                          <Badge variant={client.daysRemaining && client.daysRemaining <= 7 ? 'destructive' : 'default'}>
-                            {client.daysRemaining !== null ? `${client.daysRemaining} days` : 'N/A'}
-                          </Badge>
-                        </td>
-                        <td className="p-4">{client.packageType || 'N/A'}</td>
-                        <td className="p-4">
-                          <div className="flex gap-2 justify-center">
-                            <button
-                              onClick={() => handleEdit(client)}
-                              className="h-8 w-8 p-0 flex items-center justify-center text-blue-600 hover:text-blue-700 hover:bg-blue-50 border border-gray-300 rounded-md transition-colors"
-                              title="Edit Client"
-                            >
-                              <Edit className="h-4 w-4" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                Rows
+                <select
+                  value={pageSize}
+                  onChange={(e) => {
+                    const next = Number(e.target.value) || 25;
+                    setPageSize(next);
+                    setPage(1);
+                  }}
+                  className="bg-transparent border border-border rounded px-2 py-1 text-foreground"
+                >
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </select>
+              </div>
+              <button
+                className="px-3 py-1 border rounded disabled:opacity-50"
+                disabled={page <= 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+              >
+                Prev
+              </button>
+              <button
+                className="px-3 py-1 border rounded disabled:opacity-50"
+                disabled={page >= totalPages}
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              >
+                Next
+              </button>
             </div>
           </div>
-        </TabsContent>
-
-      </Tabs>
+        </>
+      )}
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent 

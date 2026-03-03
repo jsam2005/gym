@@ -67,20 +67,29 @@ const ActiveClients = () => {
         const response = await clientAPI.getAll({ status: 'active', page, limit, search: searchTerm ? searchTerm : undefined });
         if (response.data.success) {
           // Transform API data to match the expected format
-          const transformedClients = response.data.clients.map((client: any, index: number) => ({
-            id: client.id || client._id || `client-${index}`,
-            deviceId: client.esslUserId || client.employeeCodeInDevice || '',
-            name: `${client.firstName || ''} ${client.lastName || ''}`.trim() || 'Unknown',
-            contact: client.phone || '',
-            status: client.status || 'inactive',
-            billingDate: client.packageStartDate
+          const transformedClients = response.data.clients.map((client: any, index: number) => {
+            const id = client.id || client._id || `client-${index}`;
+            const billingDate = client.packageStartDate
               ? formatDisplayDate(new Date(client.packageStartDate))
-              : 'N/A',
-            duration: (client.months && Number(client.months) > 0)
+              : 'N/A';
+            const duration = (client.months && Number(client.months) > 0)
               ? `${Number(client.months)} month${Number(client.months) > 1 ? 's' : ''}`
-              : (client.packageType || 'N/A'),
-            endDate: calculateEndDate(client.packageStartDate, client.months || client.packageType),
-          })).sort((a: any, b: any) => {
+              : (client.packageType || 'N/A');
+            const endDate = client.packageEndDate
+              ? formatDisplayDate(new Date(client.packageEndDate))
+              : calculateEndDate(client.packageStartDate, client.months || client.packageType);
+
+            return {
+              id,
+              deviceId: client.esslUserId || client.employeeCodeInDevice || '',
+              name: `${client.firstName || ''} ${client.lastName || ''}`.trim() || 'Unknown',
+              contact: client.phone || '',
+              status: client.status || 'inactive',
+              billingDate,
+              duration,
+              endDate,
+            };
+          }).sort((a: any, b: any) => {
             const aId = a.deviceId ?? a.id ?? '';
             const bId = b.deviceId ?? b.id ?? '';
             const aNum = Number(aId);
@@ -136,10 +145,12 @@ const ActiveClients = () => {
             ? formatDisplayDate(new Date(freshClient.packageStartDate))
             : client.billingDate,
           duration: freshClient.packageType || freshClient.duration || client.duration,
-          endDate: calculateEndDate(
-            freshClient.packageStartDate || null,
-            freshClient.months || freshClient.duration || client.duration
-          ),
+          endDate: freshClient.packageEndDate
+            ? formatDisplayDate(new Date(freshClient.packageEndDate))
+            : calculateEndDate(
+                freshClient.packageStartDate || null,
+                freshClient.months || freshClient.duration || client.duration
+              ),
           // Include GymClients data - explicitly set to null if not present
           bloodGroup: freshClient.bloodGroup || null,
           amount: (freshClient.packageAmount || freshClient.totalAmount) ? (freshClient.packageAmount || freshClient.totalAmount) : null,

@@ -82,20 +82,31 @@ const AllClients = () => {
           // Transform API data to match the expected format
         // Transform and deduplicate clients
         const transformedClients = response.data.clients
-          .map((client: any, index: number) => ({
-            id: client.id || client._id || `client-${index}`, // EmployeeId from database (unique)
-            deviceId: client.esslUserId || client.employeeCodeInDevice || '', // Device ID (EmployeeCodeInDevice)
-            name: `${client.firstName || ''} ${client.lastName || ''}`.trim() || 'Unknown',
-            contact: client.phone || '',
-            status: client.status || 'inactive',
-            billingDate: client.packageStartDate 
+          .map((client: any, index: number) => {
+            const id = client.id || client._id || `client-${index}`;
+            const billingDate = client.packageStartDate
               ? formatDisplayDate(new Date(client.packageStartDate))
-              : 'N/A',
-            duration: (client.months && Number(client.months) > 0)
+              : 'N/A';
+
+            const duration = (client.months && Number(client.months) > 0)
               ? `${Number(client.months)} month${Number(client.months) > 1 ? 's' : ''}`
-              : (client.packageType || 'N/A'),
-            endDate: calculateEndDate(client.packageStartDate, client.months || client.packageType),
-          }))
+              : (client.packageType || 'N/A');
+
+            const endDate = client.packageEndDate
+              ? formatDisplayDate(new Date(client.packageEndDate))
+              : calculateEndDate(client.packageStartDate, client.months || client.packageType);
+
+            return {
+              id, // EmployeeId from database (unique)
+              deviceId: client.esslUserId || client.employeeCodeInDevice || '', // Device ID
+              name: `${client.firstName || ''} ${client.lastName || ''}`.trim() || 'Unknown',
+              contact: client.phone || '',
+              status: client.status || 'inactive',
+              billingDate,
+              duration,
+              endDate,
+            };
+          })
           // Remove duplicates based on EmployeeId (id field)
           .filter((client: any, index: number, self: any[]) => 
             index === self.findIndex((c: any) => c.id === client.id)
@@ -193,10 +204,12 @@ const AllClients = () => {
             ? formatDisplayDate(new Date(freshClient.packageStartDate))
             : client.billingDate,
           duration: freshClient.packageType || freshClient.duration || client.duration,
-          endDate: calculateEndDate(
-            freshClient.packageStartDate || null,
-            freshClient.months || freshClient.duration || client.duration
-          ),
+          endDate: freshClient.packageEndDate
+            ? formatDisplayDate(new Date(freshClient.packageEndDate))
+            : calculateEndDate(
+                freshClient.packageStartDate || null,
+                freshClient.months || freshClient.duration || client.duration
+              ),
           // Include GymClients data - explicitly check for null/undefined/empty
           bloodGroup: (freshClient.bloodGroup && freshClient.bloodGroup.trim() !== '') ? freshClient.bloodGroup : null,
           amount: ((freshClient.packageAmount && freshClient.packageAmount > 0) || (freshClient.totalAmount && freshClient.totalAmount > 0)) 

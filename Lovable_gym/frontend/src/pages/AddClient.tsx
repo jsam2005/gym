@@ -31,6 +31,7 @@ const AddClient = () => {
     totalAmount: "",
     amount: "",
     pendingAmount: "",
+    billingDate: "",
     remainingDate: "",
     fromTime: "",
     fromAmPm: "AM",
@@ -52,6 +53,10 @@ const AddClient = () => {
   useEffect(() => {
     if (!editState?.editClient) return;
     const c = editState.editClient;
+    const packageStart = c.packageStartDate;
+    const startDateStr = packageStart
+      ? (packageStart instanceof Date ? packageStart : new Date(packageStart)).toISOString().slice(0, 10)
+      : "";
     const packageEnd = c.packageEndDate || c.remainingDate;
     const endDateStr = packageEnd
       ? (packageEnd instanceof Date ? packageEnd : new Date(packageEnd)).toISOString().slice(0, 10)
@@ -83,6 +88,7 @@ const AddClient = () => {
       totalAmount: (c.packageAmount != null || c.totalAmount != null) ? String(c.packageAmount ?? c.totalAmount ?? "") : "",
       amount: (c.amountPaid != null ? String(c.amountPaid) : ""),
       pendingAmount: (c.pendingAmount != null ? String(c.pendingAmount) : ""),
+      billingDate: startDateStr,
       remainingDate: endDateStr,
       fromTime,
       fromAmPm,
@@ -92,6 +98,19 @@ const AddClient = () => {
       status: (c.status ?? "active").toString(),
     });
   }, [editState?.editClient]);
+
+  // Recalculate remaining/end date whenever billing date or months change
+  useEffect(() => {
+    if (!formData.billingDate || !formData.months) return;
+    const monthsInt = parseInt(formData.months || "0", 10);
+    if (!Number.isFinite(monthsInt) || monthsInt <= 0) return;
+    const start = new Date(formData.billingDate);
+    if (Number.isNaN(start.getTime())) return;
+    const end = new Date(start);
+    end.setMonth(end.getMonth() + monthsInt);
+    const iso = end.toISOString().slice(0, 10);
+    setFormData(prev => prev.remainingDate === iso ? prev : { ...prev, remainingDate: iso });
+  }, [formData.billingDate, formData.months]);
 
   // Fetch packages on component mount
   useEffect(() => {
@@ -126,9 +145,18 @@ const AddClient = () => {
       relation: "Family"
     },
     packageType: formData.package || undefined,
-    packageStartDate: new Date(),
-    packageEndDate: formData.remainingDate ? new Date(formData.remainingDate) : 
-                   new Date(Date.now() + (parseInt(formData.months || "1") * 30 * 24 * 60 * 60 * 1000)),
+    packageStartDate: formData.billingDate
+      ? new Date(formData.billingDate)
+      : new Date(),
+    packageEndDate: formData.remainingDate
+      ? new Date(formData.remainingDate)
+      : (() => {
+          const monthsInt = parseInt(formData.months || "1", 10);
+          const base = formData.billingDate ? new Date(formData.billingDate) : new Date();
+          const end = new Date(base);
+          end.setMonth(end.getMonth() + (Number.isFinite(monthsInt) && monthsInt > 0 ? monthsInt : 1));
+          return end;
+        })(),
     packageAmount: formData.totalAmount ? parseFloat(formData.totalAmount) : undefined,
     amountPaid: formData.amount ? parseFloat(formData.amount) : undefined,
     bloodGroup: formData.bloodGroup || undefined,
@@ -281,7 +309,7 @@ const AddClient = () => {
           </div>
 
           {/* Package and Training Details Row */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
             <div>
               <Label htmlFor="months" className="text-sm font-medium mb-2 block">Duration (Months)</Label>
               <Input
@@ -334,6 +362,15 @@ const AddClient = () => {
                 placeholder="Enter total amount"
                 value={formData.totalAmount}
                 onChange={(e) => handleInputChange("totalAmount", e.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="billingDate" className="text-sm font-medium mb-2 block">Billing Date</Label>
+              <Input
+                id="billingDate"
+                type="date"
+                value={formData.billingDate}
+                onChange={(e) => handleInputChange("billingDate", e.target.value)}
               />
             </div>
           </div>
@@ -496,7 +533,7 @@ const AddClient = () => {
                 id="remainingDate"
                 type="date"
                 value={formData.remainingDate}
-                onChange={(e) => handleInputChange("remainingDate", e.target.value)}
+                readOnly
               />
             </div>
           </div>
