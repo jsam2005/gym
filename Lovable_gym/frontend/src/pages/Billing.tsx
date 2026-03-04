@@ -153,7 +153,7 @@ const Billing = () => {
                   ),
             };
 
-            const amount =
+            const totalAmount =
               billing.amount ??
               billing.totalAmount ??
               billing.packageAmount ??
@@ -161,23 +161,19 @@ const Billing = () => {
               client.totalAmount ??
               0;
 
-            const pending =
-              billing.pendingAmount ??
-              billing.balance ??
-              client.pendingAmount ??
+            const paidAmount =
+              billing.amountPaid ??
+              client.amountPaid ??
               0;
 
-            const balance =
-              billing.balance ??
-              billing.pendingAmount ??
-              client.pendingAmount ??
-              0;
+            const balance = (typeof totalAmount === "number" ? totalAmount : parseFloat(String(totalAmount)) || 0) - 
+                           (typeof paidAmount === "number" ? paidAmount : parseFloat(String(paidAmount)) || 0);
 
             return {
               ...baseClient,
-              amount: typeof amount === "number" ? amount : parseFloat(String(amount)) || 0,
-              pendingAmount: typeof pending === "number" ? pending : parseFloat(String(pending)) || 0,
-              balance: typeof balance === "number" ? balance : parseFloat(String(balance)) || 0,
+              amount: typeof totalAmount === "number" ? totalAmount : parseFloat(String(totalAmount)) || 0,
+              balance: balance >= 0 ? balance : 0,
+              pendingAmount: balance >= 0 ? balance : 0,
             };
           })
           .sort((a: any, b: any) => {
@@ -197,32 +193,27 @@ const Billing = () => {
         setBillingClients(mergedClients);
       }
       
-      // Calculate totals from merged client data (uses updated pendingAmount)
+      // Calculate totals from merged client data
       const totalAmount = mergedClients.reduce((sum: number, c: any) => {
         const amount = c.amount || c.totalAmount || c.packageAmount || 0;
         return sum + (typeof amount === 'number' ? amount : parseFloat(String(amount)) || 0);
       }, 0);
       
-      const totalPending = mergedClients.reduce((sum: number, c: any) => {
-        const pending =
-          c.pendingAmount !== undefined && c.pendingAmount !== null
-            ? c.pendingAmount
-            : c.balance !== undefined && c.balance !== null
-              ? c.balance
-              : 0;
-        return sum + (typeof pending === 'number' ? pending : parseFloat(String(pending)) || 0);
+      const totalBalance = mergedClients.reduce((sum: number, c: any) => {
+        const balance = c.balance !== undefined && c.balance !== null ? c.balance : 0;
+        return sum + (typeof balance === 'number' ? balance : parseFloat(String(balance)) || 0);
       }, 0);
       
-      const totalPaid = totalAmount - totalPending;
+      const totalPaid = totalAmount - totalBalance;
       
       if (summaryRes.data.success) {
         const summaryData = summaryRes.data.data || {};
-        // Use calculated totals from merged client data (more accurate, includes updated pendingAmount)
+        // Use calculated totals from merged client data (more accurate)
         setSummary({ 
           totalBillings: mergedClients.length || summaryData.totalBillings || 0, 
           totalAmount: totalAmount || summaryData.totalAmount || 0,
           totalPaid: totalPaid || summaryData.totalPaid || 0,
-          pendingAmount: totalPending || summaryData.pendingAmount || 0, 
+          pendingAmount: totalBalance || summaryData.pendingAmount || 0, 
           thisMonthCollections: summaryData.thisMonthCollections || 0 
         });
       } else {
@@ -231,7 +222,7 @@ const Billing = () => {
           totalBillings: mergedClients.length || 0,
           totalAmount: totalAmount,
           totalPaid: totalPaid,
-          pendingAmount: totalPending,
+          pendingAmount: totalBalance,
           thisMonthCollections: 0,
         });
       }

@@ -29,8 +29,7 @@ const AddClient = () => {
     months: "",
     package: "",
     totalAmount: "",
-    amount: "",
-    pendingAmount: "",
+    paidAmount: "",
     billingDate: "",
     remainingDate: "",
     fromTime: "",
@@ -86,8 +85,7 @@ const AddClient = () => {
       months: (c.months != null ? String(c.months) : ""),
       package: (c.packageType ?? "").toString(),
       totalAmount: (c.packageAmount != null || c.totalAmount != null) ? String(c.packageAmount ?? c.totalAmount ?? "") : "",
-      amount: (c.amountPaid != null ? String(c.amountPaid) : ""),
-      pendingAmount: (c.pendingAmount != null ? String(c.pendingAmount) : ""),
+      paidAmount: (c.amountPaid != null ? String(c.amountPaid) : ""),
       billingDate: startDateStr,
       remainingDate: endDateStr,
       fromTime,
@@ -131,45 +129,49 @@ const AddClient = () => {
     fetchPackages();
   }, []);
 
-  const buildPayload = () => ({
-    firstName: formData.firstName || "",
-    lastName: formData.lastName || "",
-    phone: formData.contact || undefined,
-    email: formData.email || undefined,
-    address: formData.address || undefined,
-    gender: formData.gender || undefined,
-    dateOfBirth: new Date(),
-    emergencyContact: {
-      name: "Emergency Contact",
-      phone: "0000000000",
-      relation: "Family"
-    },
-    packageType: formData.package || undefined,
-    packageStartDate: formData.billingDate
-      ? new Date(formData.billingDate)
-      : new Date(),
-    packageEndDate: formData.remainingDate
-      ? new Date(formData.remainingDate)
-      : (() => {
-          const monthsInt = parseInt(formData.months || "1", 10);
-          const base = formData.billingDate ? new Date(formData.billingDate) : new Date();
-          const end = new Date(base);
-          end.setMonth(end.getMonth() + (Number.isFinite(monthsInt) && monthsInt > 0 ? monthsInt : 1));
-          return end;
-        })(),
-    packageAmount: formData.totalAmount ? parseFloat(formData.totalAmount) : undefined,
-    amountPaid: formData.amount ? parseFloat(formData.amount) : undefined,
-    bloodGroup: formData.bloodGroup || undefined,
-    months: formData.months ? parseInt(formData.months) : undefined,
-    timings: formData.fromTime && formData.toTime 
-      ? `${formData.fromTime} ${formData.fromAmPm} - ${formData.toTime} ${formData.toAmPm}`
-      : undefined,
-    paymentMode: formData.paymentMode || undefined,
-    ...(formData.pendingAmount !== "" && formData.pendingAmount != null
-      ? { pendingAmount: parseFloat(formData.pendingAmount) }
-      : {}),
-    status: formData.status || undefined,
-  });
+  const buildPayload = () => {
+    const totalAmount = formData.totalAmount ? parseFloat(formData.totalAmount) : 0;
+    const paidAmount = formData.paidAmount ? parseFloat(formData.paidAmount) : 0;
+    const pendingAmount = totalAmount - paidAmount;
+    
+    return {
+      firstName: formData.firstName || "",
+      lastName: formData.lastName || "",
+      phone: formData.contact || undefined,
+      email: formData.email || undefined,
+      address: formData.address || undefined,
+      gender: formData.gender || undefined,
+      dateOfBirth: new Date(),
+      emergencyContact: {
+        name: "Emergency Contact",
+        phone: "0000000000",
+        relation: "Family"
+      },
+      packageType: formData.package || undefined,
+      packageStartDate: formData.billingDate
+        ? new Date(formData.billingDate)
+        : new Date(),
+      packageEndDate: formData.remainingDate
+        ? new Date(formData.remainingDate)
+        : (() => {
+            const monthsInt = parseInt(formData.months || "1", 10);
+            const base = formData.billingDate ? new Date(formData.billingDate) : new Date();
+            const end = new Date(base);
+            end.setMonth(end.getMonth() + (Number.isFinite(monthsInt) && monthsInt > 0 ? monthsInt : 1));
+            return end;
+          })(),
+      packageAmount: totalAmount || undefined,
+      amountPaid: paidAmount || undefined,
+      pendingAmount: pendingAmount >= 0 ? pendingAmount : undefined,
+      bloodGroup: formData.bloodGroup || undefined,
+      months: formData.months ? parseInt(formData.months) : undefined,
+      timings: formData.fromTime && formData.toTime 
+        ? `${formData.fromTime} ${formData.fromAmPm} - ${formData.toTime} ${formData.toAmPm}`
+        : undefined,
+      paymentMode: formData.paymentMode || undefined,
+      status: formData.status || undefined,
+    };
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -507,24 +509,15 @@ const AddClient = () => {
             </div>
           </div>
 
-          {/* Financial Details Row (end date is calculated, not editable) */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+          {/* Financial Details Row */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             <div>
-              <Label htmlFor="amount" className="text-sm font-medium mb-2 block">Amount</Label>
+              <Label htmlFor="paidAmount" className="text-sm font-medium mb-2 block">Paid Amount</Label>
               <Input
-                id="amount"
-                placeholder="Enter amount"
-                value={formData.amount}
-                onChange={(e) => handleInputChange("amount", e.target.value)}
-              />
-            </div>
-            <div>
-              <Label htmlFor="pendingAmount" className="text-sm font-medium mb-2 block">Pending Amount</Label>
-              <Input
-                id="pendingAmount"
-                placeholder="Enter pending amount"
-                value={formData.pendingAmount}
-                onChange={(e) => handleInputChange("pendingAmount", e.target.value)}
+                id="paidAmount"
+                placeholder="Enter paid amount"
+                value={formData.paidAmount}
+                onChange={(e) => handleInputChange("paidAmount", e.target.value)}
               />
             </div>
           </div>
