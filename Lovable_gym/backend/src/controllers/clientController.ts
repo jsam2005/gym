@@ -337,22 +337,56 @@ export const getAllClients = async (req: Request, res: Response): Promise<void> 
         console.log('📡 Using local API to fetch clients');
         const clients = await localApiService.getClients({ status: status as string });
         console.log(`✅ Local API returned ${clients.length} clients`);
+
+        // Normalize local API data to match SQL filters and dedupe rules.
+        const filtered = clients.filter((c: any) => {
+          const fullName = `${c?.firstName ?? ''} ${c?.lastName ?? ''}`;
+          const name = String(c?.employeeName ?? c?.name ?? fullName).trim();
+          const statusValue = String(c?.status ?? '').toLowerCase().trim();
+          return !name.toLowerCase().startsWith('del_') && statusValue !== 'deleted' && statusValue !== 'delete';
+        });
+
+        const uniqueById = new Map<string, any>();
+        for (const c of filtered) {
+          const key = String(c?.id ?? c?._id ?? c?.employeeId ?? c?.employeeCodeInDevice ?? c?.esslUserId ?? '');
+          if (!key) continue;
+          if (!uniqueById.has(key)) uniqueById.set(key, c);
+        }
+        let normalizedClients = Array.from(uniqueById.values());
+
+        // Apply status/search filters consistently with SQL mode.
+        if (status) {
+          const s = String(status).toLowerCase();
+          normalizedClients = normalizedClients.filter((c: any) => String(c?.status ?? '').toLowerCase() === s);
+        }
+        if (search) {
+          const q = String(search).toLowerCase();
+          normalizedClients = normalizedClients.filter((c: any) => {
+            const fullName = `${c?.firstName ?? ''} ${c?.lastName ?? ''}`;
+            const name = String(c?.employeeName ?? c?.name ?? fullName).toLowerCase();
+            const email = String(c?.email ?? '').toLowerCase();
+            const phone = String(c?.phone ?? c?.contactNo ?? '').toLowerCase();
+            const code = String(c?.employeeCode ?? c?.employeeCodeInDevice ?? c?.esslUserId ?? '').toLowerCase();
+            return name.includes(q) || email.includes(q) || phone.includes(q) || code.includes(q);
+          });
+        }
+        console.log(`✅ Local API normalized clients: ${normalizedClients.length}`);
         
         // Simple pagination for local API
         const pageNum = Number(page);
         const limitNum = Number(limit);
         const start = (pageNum - 1) * limitNum;
         const end = start + limitNum;
-        const paginatedClients = clients.slice(start, end);
+        const paginatedClients = normalizedClients.slice(start, end);
 
         res.json({
           success: true,
           clients: paginatedClients,
           pagination: {
-            total: clients.length,
+            total: normalizedClients.length,
             page: pageNum,
             limit: limitNum,
-            pages: Math.ceil(clients.length / limitNum),
+            pages: Math.ceil(normalizedClients.length / limitNum),
           },
         });
         return;

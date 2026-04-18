@@ -5,6 +5,24 @@ import { getClientStats as fetchClientStats } from '../data/clientRepository.js'
 import { getGymClientsAggregateStats } from '../data/billingMetricsRepository.js';
 import localApiService from '../services/localApiService.js';
 
+const normalizeLocalClients = (clients: any[]): any[] => {
+  const filtered = clients.filter((c: any) => {
+    const fullName = `${c?.firstName ?? ''} ${c?.lastName ?? ''}`;
+    const name = String(c?.employeeName ?? c?.name ?? fullName).trim();
+    const statusValue = String(c?.status ?? '').toLowerCase().trim();
+    return !name.toLowerCase().startsWith('del_') && statusValue !== 'deleted' && statusValue !== 'delete';
+  });
+
+  const uniqueById = new Map<string, any>();
+  for (const c of filtered) {
+    const key = String(c?.id ?? c?._id ?? c?.employeeId ?? c?.employeeCodeInDevice ?? c?.esslUserId ?? '');
+    if (!key) continue;
+    if (!uniqueById.has(key)) uniqueById.set(key, c);
+  }
+
+  return Array.from(uniqueById.values());
+};
+
 /**
  * Get comprehensive dashboard statistics
  */
@@ -14,6 +32,16 @@ export const getDashboardStats = async (req: Request, res: Response): Promise<vo
     if (isSqlDisabled()) {
       try {
         const stats = await localApiService.getDashboardStats();
+        // Keep allClients aligned with /clients list rules in API-only mode.
+        try {
+          const localClients = await localApiService.getClients();
+          const normalized = normalizeLocalClients(localClients);
+          if (stats && typeof stats === 'object') {
+            stats.allClients = normalized.length;
+          }
+        } catch (countError: any) {
+          console.warn('⚠️ Could not normalize local allClients count:', countError.message);
+        }
         res.json({
           success: true,
           data: stats,
