@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { dashboardAPI } from "@/lib/api";
+import { clientAPI, dashboardAPI } from "@/lib/api";
 
 /** KPI numbers from API may be missing or strings; always show a finite count. */
 function toKpiNum(value: unknown, fallback: number): number {
@@ -48,11 +48,16 @@ const Dashboard = () => {
   const fetchDashboardStats = async () => {
     try {
       setLoading(true);
-      const response = await dashboardAPI.getStats();
+      const [response, clientsRes] = await Promise.all([
+        dashboardAPI.getStats(),
+        clientAPI.getAll({ page: 1, limit: 1 }).catch(() => null),
+      ]);
+      const listTotal = toKpiNum(clientsRes?.data?.pagination?.total, 0);
       if (response.data.success && response.data.data) {
         const d = response.data.data as Record<string, unknown>;
         setStats((prev) => ({
-          allClients: toKpiNum(d.allClients, prev.allClients),
+          // Keep card in sync with table source-of-truth (/clients pagination total).
+          allClients: listTotal > 0 ? listTotal : toKpiNum(d.allClients, prev.allClients),
           activeClients: toKpiNum(d.activeClients, prev.activeClients),
           inactiveClients: toKpiNum(d.inactiveClients, prev.inactiveClients),
           renewalClients: toKpiNum(d.renewalClients, prev.renewalClients),
@@ -66,6 +71,8 @@ const Dashboard = () => {
             ? (d.monthlyGrowth as { month: string; value: number }[])
             : prev.monthlyGrowth,
         }));
+      } else if (listTotal > 0) {
+        setStats((prev) => ({ ...prev, allClients: listTotal }));
       }
     } catch (error: any) {
       console.error("Error fetching dashboard stats:", error);

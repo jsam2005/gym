@@ -251,9 +251,14 @@ const Billing = () => {
       const dash = statsRes?.data?.success && statsRes?.data?.data ? statsRes.data.data : null;
       const d = summaryRes.data?.success && summaryRes.data?.data ? summaryRes.data.data : {};
 
+      const tableTotal = paginationTotal != null
+        ? toKpiNum(paginationTotal, mergedClients.length)
+        : toKpiNum(mergedClients.length, 0);
+
       if (dash) {
         setSummary((prev) => ({
-          allClients: toKpiNum(dash.allClients, prev.allClients),
+          // Always use table total so card matches visible All Clients records.
+          allClients: tableTotal,
           totalBillings: toKpiNum(dash.totalBillings, prev.totalBillings),
           totalSales: toKpiNum(dash.totalSales, prev.totalSales),
           pendingAmount: toKpiNum(dash.pendingAmount, prev.pendingAmount),
@@ -266,14 +271,8 @@ const Billing = () => {
             : d.totalPaid != null && d.totalPaid !== ""
               ? d.totalPaid
               : undefined;
-        const allClientsRaw =
-          d.allClients != null && d.allClients !== ""
-            ? d.allClients
-            : paginationTotal != null
-              ? paginationTotal
-              : mergedClients.length;
         setSummary((prev) => ({
-          allClients: toKpiNum(allClientsRaw, prev.allClients),
+          allClients: tableTotal,
           totalBillings: toKpiNum(d.totalBillings, prev.totalBillings),
           totalSales: toKpiNum(totalSalesRaw, prev.totalSales),
           pendingAmount: toKpiNum(d.pendingAmount, prev.pendingAmount),
@@ -281,10 +280,7 @@ const Billing = () => {
         }));
       } else {
         setSummary((prev) => ({
-          allClients:
-            paginationTotal != null
-              ? toKpiNum(paginationTotal, prev.allClients)
-              : toKpiNum(mergedClients.length, prev.allClients),
+          allClients: tableTotal,
           totalBillings: prev.totalBillings,
           totalSales: prev.totalSales,
           pendingAmount: prev.pendingAmount,
