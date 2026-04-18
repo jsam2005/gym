@@ -50,6 +50,46 @@ const calculateEndDate = (
   return formatDisplayDate(end);
 };
 
+const CLIENT_PAGE_SIZE = 500;
+
+/** Fetch all client pages (backend pagination cap was 200; roster can be 300+). */
+async function fetchAllClientsForBilling(): Promise<{
+  clients: any[];
+  paginationTotal: number;
+  success: boolean;
+}> {
+  const first = await clientAPI.getAll({ page: 1, limit: CLIENT_PAGE_SIZE });
+  if (!first.data?.success || !Array.isArray(first.data.clients)) {
+    return { clients: [], paginationTotal: 0, success: false };
+  }
+  let clients = [...first.data.clients];
+  const paginationTotal = Number(first.data.pagination?.total) || clients.length;
+  const pagesFromApi = Number(first.data.pagination?.pages);
+  const pages =
+    pagesFromApi > 0
+      ? pagesFromApi
+      : Math.max(1, Math.ceil(paginationTotal / CLIENT_PAGE_SIZE));
+
+  for (let p = 2; p <= pages; p++) {
+    const res = await clientAPI.getAll({ page: p, limit: CLIENT_PAGE_SIZE });
+    if (res.data?.success && Array.isArray(res.data.clients)) {
+      clients = clients.concat(res.data.clients);
+    }
+  }
+
+  const byId = new Map<string, any>();
+  for (const c of clients) {
+    const id = String(c.id ?? c._id ?? "");
+    if (id && !byId.has(id)) byId.set(id, c);
+  }
+
+  return {
+    clients: Array.from(byId.values()),
+    paginationTotal,
+    success: true,
+  };
+}
+
 const Billing = () => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
@@ -108,9 +148,8 @@ const Billing = () => {
     try {
       setLoading(true);
       
-      // KPIs: prefer dashboard stats (same endpoint as Dashboard page) so totals always match; billing summary as fallback
-      const [clientsRes, billingRes, summaryRes, statsRes] = await Promise.all([
-        clientAPI.getAll({ page: 1, limit: 1000 }),
+      const [clientsPack, billingRes, summaryRes, statsRes] = await Promise.all([
+        fetchAllClientsForBilling(),
         billingAPI.getClients(),
         billingAPI.getSummary(),
         dashboardAPI.getStats().catch(() => ({ data: { success: false } })),
@@ -127,8 +166,8 @@ const Billing = () => {
 
       // Transform clients exactly like AllClients, then overlay billing amounts/balances
       let mergedClients: any[] = [];
-      if (clientsRes.data.success && Array.isArray(clientsRes.data.clients)) {
-        mergedClients = clientsRes.data.clients
+      if (clientsPack.success && clientsPack.clients.length > 0) {
+        mergedClients = clientsPack.clients
           .map((client: any, index: number) => {
             const id = client.id || client._id || `client-${index}`;
             const billing = billingById[String(id)] || {};
@@ -194,7 +233,7 @@ const Billing = () => {
         setBillingClients(mergedClients);
       }
 
-      const paginationTotal = clientsRes.data?.pagination?.total;
+      const paginationTotal = clientsPack.paginationTotal;
       const dash = statsRes?.data?.success && statsRes?.data?.data ? statsRes.data.data : null;
       const d = summaryRes.data?.success && summaryRes.data?.data ? summaryRes.data.data : {};
 

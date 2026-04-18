@@ -60,9 +60,12 @@ export const runQuery = async <T = any>(builder: (request: sql.Request) => sql.I
   }
 };
 
+/** Max rows per request (admin lists need full roster; was 200 and hid clients on Billing). */
+export const MAX_CLIENT_PAGE_SIZE = 10_000;
+
 export const mapPagination = (page?: number, limit?: number) => {
   const pageNumber = Math.max(1, Number(page) || 1);
-  const pageSize = Math.min(200, Math.max(1, Number(limit) || 50));
+  const pageSize = Math.min(MAX_CLIENT_PAGE_SIZE, Math.max(1, Number(limit) || 50));
   const offset = (pageNumber - 1) * pageSize;
   return { pageNumber, pageSize, offset };
 };

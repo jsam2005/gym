@@ -482,21 +482,22 @@ export const getClientStats = async (): Promise<ClientStats> => {
       return request.query(`
       SELECT
         COUNT(*) AS TotalClients,
-        SUM(CASE WHEN LOWER(Status) = 'active' THEN 1 ELSE 0 END) AS ActiveClients,
-        SUM(CASE WHEN LOWER(Status) = 'inactive' THEN 1 ELSE 0 END) AS InactiveClients,
-        SUM(CASE WHEN LOWER(Status) = 'inactive' THEN 1 ELSE 0 END) AS ExpiredClients,
-        SUM(CASE WHEN LOWER(Status) = 'suspended' THEN 1 ELSE 0 END) AS SuspendedClients,
-        (SELECT COUNT(DISTINCT e.EmployeeId) 
-         FROM Employees e 
-         INNER JOIN EmployeesBio eb ON e.EmployeeId = eb.EmployeeId
-         WHERE e.EmployeeName NOT LIKE 'del_%' AND LOWER(e.Status) NOT IN ('deleted', 'delete')) AS EnrolledClients,
-        SUM(CASE WHEN LOWER(Status) = 'active' THEN 1 ELSE 0 END) AS AccessActiveClients,
+        SUM(CASE WHEN COALESCE(LOWER(e.Status), '') = 'active' THEN 1 ELSE 0 END) AS ActiveClients,
+        SUM(CASE WHEN COALESCE(LOWER(e.Status), '') = 'inactive' THEN 1 ELSE 0 END) AS InactiveClients,
+        SUM(CASE WHEN COALESCE(LOWER(e.Status), '') = 'inactive' THEN 1 ELSE 0 END) AS ExpiredClients,
+        SUM(CASE WHEN COALESCE(LOWER(e.Status), '') = 'suspended' THEN 1 ELSE 0 END) AS SuspendedClients,
+        (SELECT COUNT(DISTINCT e2.EmployeeId)
+         FROM Employees e2
+         INNER JOIN EmployeesBio eb ON e2.EmployeeId = eb.EmployeeId
+         WHERE COALESCE(e2.EmployeeName, '') NOT LIKE 'del_%'
+           AND COALESCE(LOWER(e2.Status), '') NOT IN ('deleted', 'delete')) AS EnrolledClients,
+        SUM(CASE WHEN COALESCE(LOWER(e.Status), '') = 'active' THEN 1 ELSE 0 END) AS AccessActiveClients,
         0 AS TotalRevenue,
         0 AS PaidRevenue,
         0 AS PendingRevenue
       FROM Employees e
-      WHERE e.EmployeeName NOT LIKE 'del_%'
-      AND LOWER(e.Status) NOT IN ('deleted', 'delete');
+      WHERE COALESCE(e.EmployeeName, '') NOT LIKE 'del_%'
+        AND COALESCE(LOWER(e.Status), '') NOT IN ('deleted', 'delete');
     `);
   });
 
