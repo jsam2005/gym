@@ -65,9 +65,9 @@ const Billing = () => {
     gymContact: '70104 12237'
   });
   const [summary, setSummary] = useState({
+    allClients: 0,
     totalBillings: 0,
-    totalAmount: 0,
-    totalPaid: 0,
+    totalSales: 0,
     pendingAmount: 0,
     thisMonthCollections: 0,
   });
@@ -108,7 +108,7 @@ const Billing = () => {
     try {
       setLoading(true);
       
-      // Get base client data plus billing overlays so tables stay in sync with All Clients
+      // KPIs come from billing summary API (same aggregates as dashboard); merge is for table rows only
       const [clientsRes, billingRes, summaryRes] = await Promise.all([
         clientAPI.getAll({ page: 1, limit: 1000 }),
         billingAPI.getClients(),
@@ -192,37 +192,22 @@ const Billing = () => {
 
         setBillingClients(mergedClients);
       }
-      
-      // Calculate totals from merged client data
-      const totalAmount = mergedClients.reduce((sum: number, c: any) => {
-        const amount = c.amount || c.totalAmount || c.packageAmount || 0;
-        return sum + (typeof amount === 'number' ? amount : parseFloat(String(amount)) || 0);
-      }, 0);
-      
-      const totalBalance = mergedClients.reduce((sum: number, c: any) => {
-        const balance = c.balance !== undefined && c.balance !== null ? c.balance : 0;
-        return sum + (typeof balance === 'number' ? balance : parseFloat(String(balance)) || 0);
-      }, 0);
-      
-      const totalPaid = totalAmount - totalBalance;
-      
+
       if (summaryRes.data.success) {
-        const summaryData = summaryRes.data.data || {};
-        // Use calculated totals from merged client data (more accurate)
-        setSummary({ 
-          totalBillings: mergedClients.length || summaryData.totalBillings || 0, 
-          totalAmount: totalAmount || summaryData.totalAmount || 0,
-          totalPaid: totalPaid || summaryData.totalPaid || 0,
-          pendingAmount: totalBalance || summaryData.pendingAmount || 0, 
-          thisMonthCollections: summaryData.thisMonthCollections || 0 
+        const d = summaryRes.data.data || {};
+        setSummary({
+          allClients: Number(d.allClients) || 0,
+          totalBillings: Number(d.totalBillings) || 0,
+          totalSales: Number(d.totalSales) || 0,
+          pendingAmount: Number(d.pendingAmount) || 0,
+          thisMonthCollections: Number(d.thisMonthCollections) || 0,
         });
       } else {
-        // Fallback: use calculated totals from merged client data
         setSummary({
-          totalBillings: mergedClients.length || 0,
-          totalAmount: totalAmount,
-          totalPaid: totalPaid,
-          pendingAmount: totalBalance,
+          allClients: 0,
+          totalBillings: 0,
+          totalSales: 0,
+          pendingAmount: 0,
           thisMonthCollections: 0,
         });
       }
@@ -658,12 +643,12 @@ const Billing = () => {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <KPICard
           title="Total Clients"
-          value={summary.totalBillings?.toLocaleString() || '0'}
+          value={summary.allClients?.toLocaleString() || '0'}
           icon={<Users className="h-6 w-6" />}
         />
         <KPICard
-          title="Total Amount"
-          value={`₹${(summary.totalAmount || 0).toLocaleString()}`}
+          title="Total Sales"
+          value={`₹${(summary.totalSales || 0).toLocaleString()}`}
           icon={<DollarSign className="h-6 w-6" />}
         />
         <KPICard

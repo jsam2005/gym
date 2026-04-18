@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { getPool, isSqlDisabled } from '../config/database.js';
 import sql from 'mssql';
 import { getClientStats as fetchClientStats } from '../data/clientRepository.js';
+import { getGymClientsAggregateStats } from '../data/billingMetricsRepository.js';
 import localApiService from '../services/localApiService.js';
 
 /**
@@ -43,44 +44,11 @@ export const getDashboardStats = async (req: Request, res: Response): Promise<vo
     const pool = await getPool();
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const startOfYear = new Date(now.getFullYear(), 0, 1);
 
     // Get client stats
     const clientStats = await fetchClientStats();
 
-    // Get billing stats from GymClients
-    let billingStats = {
-      totalBillings: 0,
-      pendingAmount: 0,
-      thisMonthCollections: 0,
-      totalSales: 0,
-    };
-
-    try {
-      const billingResult = await pool.request()
-        .input('StartOfMonth', sql.DateTime, startOfMonth)
-        .query(`
-          SELECT 
-            COUNT(*) as totalBillings,
-            ISNULL(SUM(PendingAmount), 0) as pendingAmount,
-            ISNULL(SUM(AmountPaid), 0) as totalSales,
-            ISNULL(SUM(CASE WHEN CreatedAt >= @StartOfMonth THEN AmountPaid ELSE 0 END), 0) as thisMonthCollections
-          FROM GymClients
-          WHERE TotalAmount IS NOT NULL
-        `);
-      
-      if (billingResult.recordset[0]) {
-        const row = billingResult.recordset[0];
-        billingStats = {
-          totalBillings: row.totalBillings || 0,
-          pendingAmount: parseFloat(row.pendingAmount || 0),
-          thisMonthCollections: parseFloat(row.thisMonthCollections || 0),
-          totalSales: parseFloat(row.totalSales || 0),
-        };
-      }
-    } catch (error: any) {
-      console.warn('⚠️ Could not fetch billing stats (GymClients table may not exist):', error.message);
-    }
+    const billingStats = await getGymClientsAggregateStats(startOfMonth);
 
     // Get pending and overdue clients
     let pendingClients = 0;

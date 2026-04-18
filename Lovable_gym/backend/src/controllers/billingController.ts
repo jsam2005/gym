@@ -2,6 +2,8 @@ import { Request, Response } from 'express';
 import { getPool, isSqlDisabled } from '../config/database.js';
 import sql from 'mssql';
 import { getGymClientByEmployeeId } from '../data/gymClientRepository.js';
+import { getGymClientsAggregateStats } from '../data/billingMetricsRepository.js';
+import { getClientStats } from '../data/clientRepository.js';
 import localApiService from '../services/localApiService.js';
 
 /**
@@ -543,7 +545,7 @@ export const getUpcomingPayments = async (req: Request, res: Response): Promise<
 };
 
 /**
- * Get billing summary (KPIs)
+ * Get billing summary (KPIs) — same GymClients aggregates + employee count as dashboard.
  */
 export const getBillingSummary = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -567,77 +569,23 @@ export const getBillingSummary = async (req: Request, res: Response): Promise<vo
       }
     }
 
-    const pool = await getPool();
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-    // Check if GymClients table exists
-    let tableExists = false;
-    try {
-      const tableCheck = await pool.request().query(`
-        SELECT TABLE_NAME 
-        FROM INFORMATION_SCHEMA.TABLES 
-        WHERE TABLE_NAME = 'GymClients' AND TABLE_SCHEMA = 'dbo'
-      `);
-      tableExists = tableCheck.recordset.length > 0;
-    } catch (error: any) {
-      console.warn('⚠️ Could not check GymClients table:', error.message);
-    }
-
-    if (!tableExists) {
-      res.json({
-        success: true,
-        data: {
-          totalBillings: 0,
-          pendingAmount: 0,
-          thisMonthCollections: 0,
-        },
-      });
-      return;
-    }
-
-    let result;
-    try {
-      result = await pool.request()
-        .input('StartOfMonth', sql.DateTime, startOfMonth)
-        .query(`
-          SELECT 
-            COUNT(*) as totalBillings,
-            ISNULL(SUM(gc.TotalAmount), 0) as totalAmount,
-            ISNULL(SUM(gc.PendingAmount), 0) as pendingAmount,
-            ISNULL(SUM(gc.AmountPaid), 0) as totalPaid,
-            ISNULL(SUM(CASE WHEN gc.CreatedAt >= @StartOfMonth THEN gc.AmountPaid ELSE 0 END), 0) as thisMonthCollections
-          FROM Employees e
-          LEFT JOIN GymClients gc ON e.EmployeeId = gc.EmployeeId
-          WHERE e.EmployeeName NOT LIKE 'del_%'
-            AND LOWER(e.Status) NOT IN ('deleted', 'delete')
-            AND (gc.TotalAmount IS NOT NULL OR gc.AmountPaid IS NOT NULL OR gc.PendingAmount IS NOT NULL)
-        `);
-    } catch (queryError: any) {
-      console.warn('⚠️ Query failed, returning zero values:', queryError.message);
-      res.json({
-        success: true,
-        data: {
-          totalBillings: 0,
-          pendingAmount: 0,
-          thisMonthCollections: 0,
-        },
-      });
-      return;
-    }
-
-    const row = result.recordset[0];
-    const summary = {
-      totalBillings: parseInt(row.totalBillings || 0), // Count of billing records
-      totalAmount: parseFloat(row.totalAmount || 0), // Total package amounts
-      totalPaid: parseFloat(row.totalPaid || 0), // Total amount paid
-      pendingAmount: parseFloat(row.pendingAmount || 0),
-      thisMonthCollections: parseFloat(row.thisMonthCollections || 0),
-    };
+    const [clientStats, aggregates] = await Promise.all([
+      getClientStats(),
+      getGymClientsAggregateStats(startOfMonth),
+    ]);
 
     res.json({
       success: true,
-      data: summary,
+      data: {
+        allClients: clientStats.totalClients,
+        totalBillings: aggregates.totalBillings,
+        totalSales: aggregates.totalSales,
+        pendingAmount: aggregates.pendingAmount,
+        thisMonthCollections: aggregates.thisMonthCollections,
+      },
     });
   } catch (error: any) {
     console.error('❌ Billing summary error:', error.message);
