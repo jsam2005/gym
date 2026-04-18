@@ -6,7 +6,7 @@ import { GymTable, Client } from "@/components/GymTable";
 import { KPICard } from "@/components/KPICard";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DollarSign, Users, AlertCircle } from "lucide-react";
-import { billingAPI, clientAPI, settingsAPI } from "@/lib/api";
+import { billingAPI, clientAPI, dashboardAPI, settingsAPI } from "@/lib/api";
 
 const formatDisplayDate = (date: Date | null) =>
   date
@@ -108,11 +108,12 @@ const Billing = () => {
     try {
       setLoading(true);
       
-      // KPIs come from billing summary API (same aggregates as dashboard); merge is for table rows only
-      const [clientsRes, billingRes, summaryRes] = await Promise.all([
+      // KPIs: prefer dashboard stats (same endpoint as Dashboard page) so totals always match; billing summary as fallback
+      const [clientsRes, billingRes, summaryRes, statsRes] = await Promise.all([
         clientAPI.getAll({ page: 1, limit: 1000 }),
         billingAPI.getClients(),
         billingAPI.getSummary(),
+        dashboardAPI.getStats().catch(() => ({ data: { success: false } })),
       ]);
 
       // Build quick lookup for billing amounts by client id
@@ -193,18 +194,41 @@ const Billing = () => {
         setBillingClients(mergedClients);
       }
 
-      if (summaryRes.data.success) {
-        const d = summaryRes.data.data || {};
+      const paginationTotal = clientsRes.data?.pagination?.total;
+      const dash = statsRes?.data?.success && statsRes?.data?.data ? statsRes.data.data : null;
+      const d = summaryRes.data?.success && summaryRes.data?.data ? summaryRes.data.data : {};
+
+      if (dash) {
         setSummary({
-          allClients: Number(d.allClients) || 0,
+          allClients: Number(dash.allClients) || 0,
+          totalBillings: Number(dash.totalBillings) || 0,
+          totalSales: Number(dash.totalSales) || 0,
+          pendingAmount: Number(dash.pendingAmount) || 0,
+          thisMonthCollections: Number(dash.thisMonthCollections) || 0,
+        });
+      } else if (summaryRes.data?.success) {
+        const totalSales =
+          d.totalSales != null && d.totalSales !== ""
+            ? Number(d.totalSales)
+            : d.totalPaid != null && d.totalPaid !== ""
+              ? Number(d.totalPaid)
+              : 0;
+        const allClients =
+          d.allClients != null && d.allClients !== ""
+            ? Number(d.allClients)
+            : paginationTotal != null
+              ? Number(paginationTotal)
+              : mergedClients.length;
+        setSummary({
+          allClients: Number.isFinite(allClients) ? allClients : 0,
           totalBillings: Number(d.totalBillings) || 0,
-          totalSales: Number(d.totalSales) || 0,
+          totalSales: Number.isFinite(totalSales) ? totalSales : 0,
           pendingAmount: Number(d.pendingAmount) || 0,
           thisMonthCollections: Number(d.thisMonthCollections) || 0,
         });
       } else {
         setSummary({
-          allClients: 0,
+          allClients: paginationTotal != null ? Number(paginationTotal) : mergedClients.length,
           totalBillings: 0,
           totalSales: 0,
           pendingAmount: 0,
