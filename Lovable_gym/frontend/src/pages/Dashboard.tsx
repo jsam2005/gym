@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Users, UserCheck, UserX, UserPlus, CreditCard, IndianRupee, Clock, ShoppingBag, AlertCircle } from "lucide-react";
+import { UserCheck, UserX, UserPlus, CreditCard, IndianRupee, Clock, ShoppingBag, AlertCircle } from "lucide-react";
 import { KPICard } from "@/components/KPICard";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
@@ -87,7 +87,6 @@ const Dashboard = () => {
   // };
 
   const kpiData = [
-    { title: "All Clients", value: toKpiNum(stats.allClients, 0).toLocaleString(), icon: Users, variant: "default" as const },
     { title: "Active Clients", value: toKpiNum(stats.activeClients, 0).toLocaleString(), icon: UserCheck, variant: "success" as const },
     { title: "Inactive Clients", value: toKpiNum(stats.inactiveClients, 0).toLocaleString(), icon: UserX, variant: "warning" as const },
     { title: "Renewal Clients", value: toKpiNum(stats.renewalClients, 0).toLocaleString(), icon: UserPlus, variant: "danger" as const },

@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { GymTable, Client } from "@/components/GymTable";
 import { KPICard } from "@/components/KPICard";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { IndianRupee, Users, AlertCircle } from "lucide-react";
+import { IndianRupee, AlertCircle } from "lucide-react";
 import { billingAPI, clientAPI, dashboardAPI, settingsAPI } from "@/lib/api";
 
 const formatDisplayDate = (date: Date | null) =>
@@ -717,11 +717,6 @@ const Billing = () => {
       
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <KPICard
-          title="Total Clients"
-          value={toKpiNum(summary.allClients, 0).toLocaleString()}
-          icon={<Users className="h-6 w-6" />}
-        />
         <KPICard
           title="Total Sales"
           value={`₹${toKpiNum(summary.totalSales, 0).toLocaleString()}`}
