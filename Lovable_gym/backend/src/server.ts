@@ -115,6 +115,16 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.text({ type: ['text/plain', 'text/html', 'application/x-www-form-urlencoded'] }));
 app.use(morgan('dev'));
 
+// Dynamic JSON must not be cached by browser/proxy (avoids Dashboard vs Billing mismatch until hard refresh)
+app.use((req, res, next) => {
+  if (req.originalUrl.startsWith('/api')) {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+  }
+  next();
+});
+
 // Make io available to routes
 app.set('io', io);
 

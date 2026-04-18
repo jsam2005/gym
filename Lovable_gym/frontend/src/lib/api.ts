@@ -33,6 +33,11 @@ export default api;
 // Request interceptor
 api.interceptors.request.use(
   (config) => {
+    // Bust HTTP caches on GET so stats stay in sync across routes without a full page refresh
+    const method = (config.method || 'get').toLowerCase();
+    if (method === 'get') {
+      config.params = { ...(config.params as Record<string, unknown> | undefined), _t: Date.now() };
+    }
     // Add auth token if available
     const token = localStorage.getItem('token');
     if (token) {
