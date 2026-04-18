@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { GymTable, Client } from "@/components/GymTable";
 import { KPICard } from "@/components/KPICard";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { DollarSign, Users, AlertCircle } from "lucide-react";
+import { IndianRupee, Users, AlertCircle } from "lucide-react";
 import { billingAPI, clientAPI, dashboardAPI, settingsAPI } from "@/lib/api";
 
 const formatDisplayDate = (date: Date | null) =>
@@ -16,6 +16,12 @@ const formatDisplayDate = (date: Date | null) =>
         year: "numeric",
       })
     : "N/A";
+
+function toKpiNum(value: unknown, fallback: number): number {
+  if (value === undefined || value === null || value === "") return fallback;
+  const n = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
 
 const calculateEndDate = (
   packageStartDate?: string | null,
@@ -77,15 +83,23 @@ async function fetchAllClientsForBilling(): Promise<{
     }
   }
 
-  const byId = new Map<string, any>();
-  for (const c of clients) {
-    const id = String(c.id ?? c._id ?? "");
-    if (id && !byId.has(id)) byId.set(id, c);
-  }
+  const byKey = new Map<string, any>();
+  clients.forEach((c: any, index: number) => {
+    const primary =
+      String(c?.id ?? c?._id ?? "").trim() ||
+      String(c?.esslUserId ?? c?.employeeCodeInDevice ?? c?.employeeCode ?? "").trim();
+    const name = `${c?.firstName ?? ""} ${c?.lastName ?? ""}`.trim().toLowerCase();
+    const phone = String(c?.phone ?? c?.contact ?? "").trim();
+    const key =
+      primary || (name || phone ? `nk:${name}|${phone}` : `nk:row:${index}`);
+    if (!byKey.has(key)) byKey.set(key, c);
+  });
+
+  const deduped = Array.from(byKey.values());
 
   return {
-    clients: Array.from(byId.values()),
-    paginationTotal,
+    clients: deduped,
+    paginationTotal: Math.max(paginationTotal, deduped.length),
     success: true,
   };
 }
@@ -238,41 +252,44 @@ const Billing = () => {
       const d = summaryRes.data?.success && summaryRes.data?.data ? summaryRes.data.data : {};
 
       if (dash) {
-        setSummary({
-          allClients: Number(dash.allClients) || 0,
-          totalBillings: Number(dash.totalBillings) || 0,
-          totalSales: Number(dash.totalSales) || 0,
-          pendingAmount: Number(dash.pendingAmount) || 0,
-          thisMonthCollections: Number(dash.thisMonthCollections) || 0,
-        });
+        setSummary((prev) => ({
+          allClients: toKpiNum(dash.allClients, prev.allClients),
+          totalBillings: toKpiNum(dash.totalBillings, prev.totalBillings),
+          totalSales: toKpiNum(dash.totalSales, prev.totalSales),
+          pendingAmount: toKpiNum(dash.pendingAmount, prev.pendingAmount),
+          thisMonthCollections: toKpiNum(dash.thisMonthCollections, prev.thisMonthCollections),
+        }));
       } else if (summaryRes.data?.success) {
-        const totalSales =
+        const totalSalesRaw =
           d.totalSales != null && d.totalSales !== ""
-            ? Number(d.totalSales)
+            ? d.totalSales
             : d.totalPaid != null && d.totalPaid !== ""
-              ? Number(d.totalPaid)
-              : 0;
-        const allClients =
+              ? d.totalPaid
+              : undefined;
+        const allClientsRaw =
           d.allClients != null && d.allClients !== ""
-            ? Number(d.allClients)
+            ? d.allClients
             : paginationTotal != null
-              ? Number(paginationTotal)
+              ? paginationTotal
               : mergedClients.length;
-        setSummary({
-          allClients: Number.isFinite(allClients) ? allClients : 0,
-          totalBillings: Number(d.totalBillings) || 0,
-          totalSales: Number.isFinite(totalSales) ? totalSales : 0,
-          pendingAmount: Number(d.pendingAmount) || 0,
-          thisMonthCollections: Number(d.thisMonthCollections) || 0,
-        });
+        setSummary((prev) => ({
+          allClients: toKpiNum(allClientsRaw, prev.allClients),
+          totalBillings: toKpiNum(d.totalBillings, prev.totalBillings),
+          totalSales: toKpiNum(totalSalesRaw, prev.totalSales),
+          pendingAmount: toKpiNum(d.pendingAmount, prev.pendingAmount),
+          thisMonthCollections: toKpiNum(d.thisMonthCollections, prev.thisMonthCollections),
+        }));
       } else {
-        setSummary({
-          allClients: paginationTotal != null ? Number(paginationTotal) : mergedClients.length,
-          totalBillings: 0,
-          totalSales: 0,
-          pendingAmount: 0,
-          thisMonthCollections: 0,
-        });
+        setSummary((prev) => ({
+          allClients:
+            paginationTotal != null
+              ? toKpiNum(paginationTotal, prev.allClients)
+              : toKpiNum(mergedClients.length, prev.allClients),
+          totalBillings: prev.totalBillings,
+          totalSales: prev.totalSales,
+          pendingAmount: prev.pendingAmount,
+          thisMonthCollections: prev.thisMonthCollections,
+        }));
       }
     } catch (error: any) {
       console.error("Error fetching billing data:", error);
@@ -706,23 +723,23 @@ const Billing = () => {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <KPICard
           title="Total Clients"
-          value={summary.allClients?.toLocaleString() || '0'}
+          value={toKpiNum(summary.allClients, 0).toLocaleString()}
           icon={<Users className="h-6 w-6" />}
         />
         <KPICard
           title="Total Sales"
-          value={`₹${(summary.totalSales || 0).toLocaleString()}`}
-          icon={<DollarSign className="h-6 w-6" />}
+          value={`₹${toKpiNum(summary.totalSales, 0).toLocaleString()}`}
+          icon={<IndianRupee className="h-6 w-6" />}
         />
         <KPICard
           title="Pending Amount"
-          value={`₹${(summary.pendingAmount || 0).toLocaleString()}`}
+          value={`₹${toKpiNum(summary.pendingAmount, 0).toLocaleString()}`}
           icon={<AlertCircle className="h-6 w-6" />}
         />
         <KPICard
           title="This Month Collections"
-          value={`₹${(summary.thisMonthCollections || 0).toLocaleString()}`}
-          icon={<DollarSign className="h-6 w-6" />}
+          value={`₹${toKpiNum(summary.thisMonthCollections, 0).toLocaleString()}`}
+          icon={<IndianRupee className="h-6 w-6" />}
         />
       </div>
 

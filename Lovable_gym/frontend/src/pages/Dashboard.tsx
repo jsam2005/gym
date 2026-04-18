@@ -1,11 +1,18 @@
 import { useState, useEffect } from "react";
-import { Users, UserCheck, UserX, UserPlus, CreditCard, DollarSign, Clock, ShoppingBag, AlertCircle } from "lucide-react";
+import { Users, UserCheck, UserX, UserPlus, CreditCard, IndianRupee, Clock, ShoppingBag, AlertCircle } from "lucide-react";
 import { KPICard } from "@/components/KPICard";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { dashboardAPI } from "@/lib/api";
+
+/** KPI numbers from API may be missing or strings; always show a finite count. */
+function toKpiNum(value: unknown, fallback: number): number {
+  if (value === undefined || value === null || value === "") return fallback;
+  const n = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -42,8 +49,23 @@ const Dashboard = () => {
     try {
       setLoading(true);
       const response = await dashboardAPI.getStats();
-      if (response.data.success) {
-        setStats(response.data.data);
+      if (response.data.success && response.data.data) {
+        const d = response.data.data as Record<string, unknown>;
+        setStats((prev) => ({
+          allClients: toKpiNum(d.allClients, prev.allClients),
+          activeClients: toKpiNum(d.activeClients, prev.activeClients),
+          inactiveClients: toKpiNum(d.inactiveClients, prev.inactiveClients),
+          renewalClients: toKpiNum(d.renewalClients, prev.renewalClients),
+          totalBillings: toKpiNum(d.totalBillings, prev.totalBillings),
+          totalSales: toKpiNum(d.totalSales, prev.totalSales),
+          pendingAmount: toKpiNum(d.pendingAmount, prev.pendingAmount),
+          thisMonthCollections: toKpiNum(d.thisMonthCollections, prev.thisMonthCollections),
+          pendingClients: toKpiNum(d.pendingClients, prev.pendingClients),
+          overdueClients: toKpiNum(d.overdueClients, prev.overdueClients),
+          monthlyGrowth: Array.isArray(d.monthlyGrowth)
+            ? (d.monthlyGrowth as { month: string; value: number }[])
+            : prev.monthlyGrowth,
+        }));
       }
     } catch (error: any) {
       console.error("Error fetching dashboard stats:", error);
@@ -58,17 +80,17 @@ const Dashboard = () => {
   // };
 
   const kpiData = [
-    { title: "All Clients", value: stats.allClients.toLocaleString(), icon: Users, variant: "default" as const },
-    { title: "Active Clients", value: stats.activeClients.toLocaleString(), icon: UserCheck, variant: "success" as const },
-    { title: "Inactive Clients", value: stats.inactiveClients.toLocaleString(), icon: UserX, variant: "warning" as const },
-    { title: "Renewal Clients", value: stats.renewalClients.toLocaleString(), icon: UserPlus, variant: "danger" as const },
+    { title: "All Clients", value: toKpiNum(stats.allClients, 0).toLocaleString(), icon: Users, variant: "default" as const },
+    { title: "Active Clients", value: toKpiNum(stats.activeClients, 0).toLocaleString(), icon: UserCheck, variant: "success" as const },
+    { title: "Inactive Clients", value: toKpiNum(stats.inactiveClients, 0).toLocaleString(), icon: UserX, variant: "warning" as const },
+    { title: "Renewal Clients", value: toKpiNum(stats.renewalClients, 0).toLocaleString(), icon: UserPlus, variant: "danger" as const },
   ];
 
   const secondaryKpis = [
-    { title: "Number of Billings", value: stats.totalBillings.toLocaleString(), icon: CreditCard, subtitle: "This month" },
-    { title: "Total Sales", value: `₹${stats.totalSales.toLocaleString()}`, icon: DollarSign, subtitle: "Revenue" },
-    { title: "Pending Amount", value: `₹${stats.pendingAmount.toLocaleString()}`, icon: Clock, subtitle: "Outstanding" },
-    { title: "Pending Clients", value: `${stats.pendingClients}`, icon: AlertCircle, subtitle: `${stats.overdueClients} overdue` },
+    { title: "Number of Billings", value: toKpiNum(stats.totalBillings, 0).toLocaleString(), icon: CreditCard, subtitle: "This month" },
+    { title: "Total Sales", value: `₹${toKpiNum(stats.totalSales, 0).toLocaleString()}`, icon: IndianRupee, subtitle: "Revenue" },
+    { title: "Pending Amount", value: `₹${toKpiNum(stats.pendingAmount, 0).toLocaleString()}`, icon: Clock, subtitle: "Outstanding" },
+    { title: "Pending Clients", value: `${toKpiNum(stats.pendingClients, 0)}`, icon: AlertCircle, subtitle: `${toKpiNum(stats.overdueClients, 0)} overdue` },
   ];
 
   const chartData = stats.monthlyGrowth.length > 0 

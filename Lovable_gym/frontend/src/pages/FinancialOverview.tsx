@@ -1,11 +1,11 @@
-import { DollarSign, CreditCard, Clock } from "lucide-react";
+import { IndianRupee, CreditCard, Clock } from "lucide-react";
 import { KPICard } from "@/components/KPICard";
 import { PageHeader } from "@/components/PageHeader";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
 const kpiData = [
   { title: "Total Billings", value: "1200", icon: CreditCard, variant: "success" as const },
-  { title: "Total Sales", value: "₹45,000", icon: DollarSign, variant: "success" as const },
+  { title: "Total Sales", value: "₹45,000", icon: IndianRupee, variant: "success" as const },
   { title: "Pending Amount", value: "₹5,000", icon: Clock, variant: "warning" as const },
 ];
 

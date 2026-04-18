@@ -1,27 +1,10 @@
 import { Request, Response } from 'express';
 import { getPool, isSqlDisabled } from '../config/database.js';
 import sql from 'mssql';
-import { getClientStats as fetchClientStats } from '../data/clientRepository.js';
+import { getClientStats as fetchClientStats, getClients as fetchClientsList } from '../data/clientRepository.js';
 import { getGymClientsAggregateStats } from '../data/billingMetricsRepository.js';
 import localApiService from '../services/localApiService.js';
-
-const normalizeLocalClients = (clients: any[]): any[] => {
-  const filtered = clients.filter((c: any) => {
-    const fullName = `${c?.firstName ?? ''} ${c?.lastName ?? ''}`;
-    const name = String(c?.employeeName ?? c?.name ?? fullName).trim();
-    const statusValue = String(c?.status ?? '').toLowerCase().trim();
-    return !name.toLowerCase().startsWith('del_') && statusValue !== 'deleted' && statusValue !== 'delete';
-  });
-
-  const uniqueById = new Map<string, any>();
-  for (const c of filtered) {
-    const key = String(c?.id ?? c?._id ?? c?.employeeId ?? c?.employeeCodeInDevice ?? c?.esslUserId ?? '');
-    if (!key) continue;
-    if (!uniqueById.has(key)) uniqueById.set(key, c);
-  }
-
-  return Array.from(uniqueById.values());
-};
+import { normalizeLocalApiClientsForList } from '../utils/localApiClientsNormalize.js';
 
 /**
  * Get comprehensive dashboard statistics
@@ -35,7 +18,7 @@ export const getDashboardStats = async (req: Request, res: Response): Promise<vo
         // Keep allClients aligned with /clients list rules in API-only mode.
         try {
           const localClients = await localApiService.getClients();
-          const normalized = normalizeLocalClients(localClients);
+          const normalized = normalizeLocalApiClientsForList(localClients);
           if (stats && typeof stats === 'object') {
             stats.allClients = normalized.length;
           }
@@ -73,10 +56,11 @@ export const getDashboardStats = async (req: Request, res: Response): Promise<vo
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-    // Get client stats
-    const clientStats = await fetchClientStats();
-
-    const billingStats = await getGymClientsAggregateStats(startOfMonth);
+    const [clientStats, billingStats, rosterMeta] = await Promise.all([
+      fetchClientStats(),
+      getGymClientsAggregateStats(startOfMonth),
+      fetchClientsList({ page: 1, limit: 1 }),
+    ]);
 
     // Get pending and overdue clients
     let pendingClients = 0;
@@ -156,7 +140,7 @@ export const getDashboardStats = async (req: Request, res: Response): Promise<vo
       success: true,
       data: {
         // Primary KPIs
-        allClients: clientStats.totalClients,
+        allClients: rosterMeta.total,
         activeClients: clientStats.activeClients,
         inactiveClients: clientStats.inactiveClients,
         renewalClients: renewalClients,

@@ -3,8 +3,9 @@ import { getPool, isSqlDisabled } from '../config/database.js';
 import sql from 'mssql';
 import { getGymClientByEmployeeId } from '../data/gymClientRepository.js';
 import { getGymClientsAggregateStats } from '../data/billingMetricsRepository.js';
-import { getClientStats } from '../data/clientRepository.js';
+import { getClients as fetchClientsList } from '../data/clientRepository.js';
 import localApiService from '../services/localApiService.js';
+import { normalizeLocalApiClientsForList } from '../utils/localApiClientsNormalize.js';
 
 /**
  * Get all billing clients with their payment information
@@ -553,6 +554,15 @@ export const getBillingSummary = async (req: Request, res: Response): Promise<vo
     if (isSqlDisabled()) {
       try {
         const summary = await localApiService.getBillingSummary();
+        try {
+          const raw = await localApiService.getClients();
+          const normalized = normalizeLocalApiClientsForList(raw);
+          if (summary && typeof summary === 'object') {
+            (summary as any).allClients = normalized.length;
+          }
+        } catch (e: any) {
+          console.warn('⚠️ Could not align billing allClients with local list:', e.message);
+        }
         res.json({
           success: true,
           data: summary,
@@ -572,15 +582,15 @@ export const getBillingSummary = async (req: Request, res: Response): Promise<vo
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-    const [clientStats, aggregates] = await Promise.all([
-      getClientStats(),
+    const [aggregates, rosterMeta] = await Promise.all([
       getGymClientsAggregateStats(startOfMonth),
+      fetchClientsList({ page: 1, limit: 1 }),
     ]);
 
     res.json({
       success: true,
       data: {
-        allClients: clientStats.totalClients,
+        allClients: rosterMeta.total,
         totalBillings: aggregates.totalBillings,
         totalSales: aggregates.totalSales,
         pendingAmount: aggregates.pendingAmount,

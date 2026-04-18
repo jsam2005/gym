@@ -9,6 +9,7 @@ import {
   updateClient as updateClientRecord,
   createEmployeeInSQL,
 } from '../data/clientRepository.js';
+import { normalizeLocalApiClientsForList } from '../utils/localApiClientsNormalize.js';
 import { createGymClient, updateGymClient, deleteGymClient, getGymClientByEmployeeId } from '../data/gymClientRepository.js';
 import esslDeviceService from '../services/esslDeviceService.js';
 import etimetrackSyncService from '../services/etimetrackSyncService.js';
@@ -338,21 +339,7 @@ export const getAllClients = async (req: Request, res: Response): Promise<void> 
         const clients = await localApiService.getClients({ status: status as string });
         console.log(`✅ Local API returned ${clients.length} clients`);
 
-        // Normalize local API data to match SQL filters and dedupe rules.
-        const filtered = clients.filter((c: any) => {
-          const fullName = `${c?.firstName ?? ''} ${c?.lastName ?? ''}`;
-          const name = String(c?.employeeName ?? c?.name ?? fullName).trim();
-          const statusValue = String(c?.status ?? '').toLowerCase().trim();
-          return !name.toLowerCase().startsWith('del_') && statusValue !== 'deleted' && statusValue !== 'delete';
-        });
-
-        const uniqueById = new Map<string, any>();
-        for (const c of filtered) {
-          const key = String(c?.id ?? c?._id ?? c?.employeeId ?? c?.employeeCodeInDevice ?? c?.esslUserId ?? '');
-          if (!key) continue;
-          if (!uniqueById.has(key)) uniqueById.set(key, c);
-        }
-        let normalizedClients = Array.from(uniqueById.values());
+        let normalizedClients = normalizeLocalApiClientsForList(clients);
 
         // Apply status/search filters consistently with SQL mode.
         if (status) {
