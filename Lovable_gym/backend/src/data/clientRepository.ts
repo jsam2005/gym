@@ -3,7 +3,7 @@ import { runQuery, stringifyJson, parseJson, mapPagination } from './sqlHelpers.
 import { AccessScheduleEntry, ClientEntity, ClientListResult, ClientStats, EmergencyContact } from '../types/domain.js';
 
 // Query from Employees table (ESSL TrackLite) instead of Clients table
-// Join with EmployeesBio to check for fingerprint enrollment
+// Use EXISTS for biometric (LEFT JOIN EmployeesBio duplicates rows when multiple bio records exist)
 const baseSelect = `
 SELECT
   CAST(e.EmployeeId AS NVARCHAR(36)) AS id,
@@ -32,9 +32,10 @@ SELECT
   gc.BloodGroup AS GymBloodGroup,
   COALESCE(gc.BillingDate, gc.CreatedAt) AS GymBillingDate,
   gc.UpdatedAt AS GymLastUpdated,
-  CASE WHEN eb.EmployeeBioId IS NOT NULL THEN 1 ELSE 0 END AS HasBiometric
+  CASE WHEN EXISTS (
+    SELECT 1 FROM EmployeesBio eb WHERE eb.EmployeeId = e.EmployeeId
+  ) THEN 1 ELSE 0 END AS HasBiometric
 FROM Employees e
-LEFT JOIN EmployeesBio eb ON e.EmployeeId = eb.EmployeeId
 OUTER APPLY (
   SELECT TOP 1
     gc.TotalAmount,
@@ -221,7 +222,6 @@ export const getClients = async (params: {
 
       SELECT COUNT(*) AS Total
       FROM Employees e
-      LEFT JOIN EmployeesBio eb ON e.EmployeeId = eb.EmployeeId
       ${where};
     `;
 
@@ -231,9 +231,9 @@ export const getClients = async (params: {
   const recordsets = result.recordsets as sql.IRecordSet<any>[] | undefined;
   const rawClients = recordsets?.[0]?.map(mapClient) ?? [];
   
-  // Remove duplicates based on EmployeeId (id field) - in case of data issues
-  const uniqueClients = rawClients.filter((client, index, self) => 
-    index === self.findIndex((c) => c.id === client.id)
+  // Remove duplicates based on EmployeeId (in case of data issues; compare as string)
+  const uniqueClients = rawClients.filter((client, index, self) =>
+    index === self.findIndex((c) => String(c.id) === String(client.id))
   );
   
   const clients = uniqueClients;
