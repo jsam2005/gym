@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { LayoutDashboard, Users, UserCheck, UserX, Package, User, ChevronDown, CreditCard, Fingerprint, Edit } from "lucide-react";
+import { LayoutDashboard, Users, UserCheck, UserX, Package, User, ChevronDown, CreditCard, Fingerprint, Edit, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -9,6 +9,7 @@ const menuItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/" },
   { icon: Package, label: "Packages", path: "/packages" },
   { icon: CreditCard, label: "Billing", path: "/billing" },
+  { icon: AlertCircle, label: "Pending Members", path: "/pending-members" },
   { icon: Fingerprint, label: "Biometric Access", path: "/biometric" },
 ];
 

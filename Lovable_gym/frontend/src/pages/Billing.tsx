@@ -57,6 +57,17 @@ const calculateEndDate = (
 };
 
 const CLIENT_PAGE_SIZE = 500;
+const DEFAULT_GYM_NAME = "Mindset fitness stdio";
+
+const resolveGymName = (name?: string | null) => {
+  const incoming = String(name || "").trim();
+  if (!incoming) return DEFAULT_GYM_NAME;
+  const normalized = incoming.toLowerCase();
+  if (normalized === "ms fitness studio" || normalized === "ms gym") {
+    return DEFAULT_GYM_NAME;
+  }
+  return incoming;
+};
 
 /** Fetch all client pages (backend pagination cap was 200; roster can be 300+). */
 async function fetchAllClientsForBilling(): Promise<{
@@ -104,7 +115,11 @@ async function fetchAllClientsForBilling(): Promise<{
   };
 }
 
-const Billing = () => {
+type BillingProps = {
+  forcePendingOnly?: boolean;
+};
+
+const Billing = ({ forcePendingOnly = false }: BillingProps) => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
@@ -114,7 +129,7 @@ const Billing = () => {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
   const [gymProfile, setGymProfile] = useState({ 
-    gymName: 'MS Fitness Studio', 
+    gymName: DEFAULT_GYM_NAME, 
     gymAddress: 'Food street, 1st floor, thalambur, Thalambur Rd, Navalur, Chennai, Tamil Nadu 600130',
     gymContact: '70104 12237'
   });
@@ -137,7 +152,7 @@ const Billing = () => {
       const response = await settingsAPI.getProfile();
       if (response.data.success && response.data.data.gymName) {
         setGymProfile({
-          gymName: response.data.data.gymName || 'MS Fitness Studio',
+          gymName: resolveGymName(response.data.data.gymName),
           gymAddress: response.data.data.gymAddress || 'Food street, 1st floor, thalambur, Thalambur Rd, Navalur, Chennai, Tamil Nadu 600130',
           gymContact: response.data.data.ownerPhone || '70104 12237',
         });
@@ -295,9 +310,13 @@ const Billing = () => {
   };
 
   // Search by client name (requested)
-  const filteredClients = billingClients.filter(client =>
-    String(client.name || '').toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredClients = billingClients.filter((client) => {
+    const matchesSearch = String(client.name || '').toLowerCase().includes(searchTerm.toLowerCase());
+    if (!matchesSearch) return false;
+    if (!forcePendingOnly) return true;
+    const pending = Number(client.pendingAmount ?? client.balance ?? 0);
+    return Number.isFinite(pending) && pending > 0;
+  });
 
   // Pagination (50 rows per page)
   const totalPages = Math.max(1, Math.ceil(filteredClients.length / pageSize));
@@ -306,7 +325,7 @@ const Billing = () => {
   useEffect(() => {
     // Reset to page 1 when searching
     setPage(1);
-  }, [searchTerm]);
+  }, [searchTerm, forcePendingOnly]);
 
   const handleView = async (client: Client) => {
     try {
@@ -710,29 +729,30 @@ const Billing = () => {
     <div className="w-full p-4 flex justify-center">
       <div className="w-full max-w-7xl">
       <PageHeader 
-        title="Billing & Payments" 
-        searchPlaceholder="Search billing records..."
+        title={forcePendingOnly ? "Pending Members" : "Billing & Payments"} 
+        searchPlaceholder={forcePendingOnly ? "Search pending members..." : "Search billing records..."}
         onSearch={setSearchTerm}
       />
       
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <KPICard
-          title="Total Sales"
-          value={`₹${toKpiNum(summary.totalSales, 0).toLocaleString()}`}
-          icon={<IndianRupee className="h-6 w-6" />}
-        />
-        <KPICard
-          title="Pending Amount"
-          value={`₹${toKpiNum(summary.pendingAmount, 0).toLocaleString()}`}
-          icon={<AlertCircle className="h-6 w-6" />}
-        />
-        <KPICard
-          title="This Month Collections"
-          value={`₹${toKpiNum(summary.thisMonthCollections, 0).toLocaleString()}`}
-          icon={<IndianRupee className="h-6 w-6" />}
-        />
-      </div>
+      {!forcePendingOnly && (
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <KPICard
+            title="Total Sales"
+            value={`₹${toKpiNum(summary.totalSales, 0).toLocaleString()}`}
+            icon={<IndianRupee className="h-6 w-6" />}
+          />
+          <KPICard
+            title="Pending Amount"
+            value={`₹${toKpiNum(summary.pendingAmount, 0).toLocaleString()}`}
+            icon={<AlertCircle className="h-6 w-6" />}
+          />
+          <KPICard
+            title="This Month Collections"
+            value={`₹${toKpiNum(summary.thisMonthCollections, 0).toLocaleString()}`}
+            icon={<IndianRupee className="h-6 w-6" />}
+          />
+        </div>
+      )}
 
       {/* Client Billing Table (pending list removed) */}
       {loading ? (
@@ -743,6 +763,7 @@ const Billing = () => {
             clients={pagedClients}
             showAmount={true}
             showBalance={true}
+            balanceHeaderLabel={forcePendingOnly ? "Pending" : "Balance"}
             onView={handleView}
             onEdit={(client) => {
               if (client?.id == null) return;

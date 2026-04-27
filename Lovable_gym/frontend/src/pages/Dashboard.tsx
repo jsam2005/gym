@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { UserCheck, UserX, UserPlus, CreditCard, IndianRupee, Clock, ShoppingBag, AlertCircle } from "lucide-react";
+import { UserCheck, UserX, UserPlus, CreditCard, IndianRupee, Clock, ShoppingBag } from "lucide-react";
 import { KPICard } from "@/components/KPICard";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
@@ -26,7 +26,6 @@ const Dashboard = () => {
     totalSales: 0,
     pendingAmount: 0,
     thisMonthCollections: 0,
-    pendingClients: 0,
     overdueClients: 0,
     monthlyGrowth: [] as { month: string; value: number }[],
   });
@@ -65,7 +64,6 @@ const Dashboard = () => {
           totalSales: toKpiNum(d.totalSales, prev.totalSales),
           pendingAmount: toKpiNum(d.pendingAmount, prev.pendingAmount),
           thisMonthCollections: toKpiNum(d.thisMonthCollections, prev.thisMonthCollections),
-          pendingClients: toKpiNum(d.pendingClients, prev.pendingClients),
           overdueClients: toKpiNum(d.overdueClients, prev.overdueClients),
           monthlyGrowth: Array.isArray(d.monthlyGrowth)
             ? (d.monthlyGrowth as { month: string; value: number }[])
@@ -96,7 +94,6 @@ const Dashboard = () => {
     { title: "Number of Billings", value: toKpiNum(stats.totalBillings, 0).toLocaleString(), icon: CreditCard, subtitle: "This month" },
     { title: "Total Sales", value: `₹${toKpiNum(stats.totalSales, 0).toLocaleString()}`, icon: IndianRupee, subtitle: "Revenue" },
     { title: "Pending Amount", value: `₹${toKpiNum(stats.pendingAmount, 0).toLocaleString()}`, icon: Clock, subtitle: "Outstanding" },
-    { title: "Pending Clients", value: `${toKpiNum(stats.pendingClients, 0)}`, icon: AlertCircle, subtitle: `${toKpiNum(stats.overdueClients, 0)} overdue` },
   ];
 
   const chartData = stats.monthlyGrowth.length > 0 

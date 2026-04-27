@@ -12,6 +12,7 @@ import AddClient from "./pages/AddClient";
 import EditClient from "./pages/EditClient";
 import Packages from "./pages/Packages";
 import Billing from "./pages/Billing";
+import PendingMembers from "./pages/PendingMembers";
 import Profile from "./pages/Profile";
 import BiometricAccess from "./pages/BiometricAccess";
 import NotFound from "./pages/NotFound";
@@ -37,6 +38,7 @@ const App = () => (
             </Route>
             <Route path="/packages" element={<Packages />} />
             <Route path="/billing" element={<Billing />} />
+            <Route path="/pending-members" element={<PendingMembers />} />
             <Route path="/biometric" element={<BiometricAccess />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="*" element={<NotFound />} />

@@ -36,6 +36,7 @@ interface GymTableProps {
   clients: Client[];
   showAmount?: boolean;
   showBalance?: boolean;
+  balanceHeaderLabel?: string;
   showRemainingDuration?: boolean;
   onView?: (client: Client) => void;
   onDelete?: (client: Client) => void;
@@ -47,6 +48,7 @@ export function GymTable({
   clients, 
   showAmount = false, 
   showBalance = false,
+  balanceHeaderLabel = "Balance",
   showRemainingDuration = false,
   onView,
   onDelete,
@@ -62,7 +64,7 @@ export function GymTable({
             <TableHead>Name</TableHead>
             <TableHead>Contact</TableHead>
             {showAmount && <TableHead>Amount</TableHead>}
-            {showBalance && <TableHead>Balance</TableHead>}
+            {showBalance && <TableHead>{balanceHeaderLabel}</TableHead>}
             <TableHead>Status</TableHead>
             <TableHead>Billing Date</TableHead>
             <TableHead>End Date</TableHead>
