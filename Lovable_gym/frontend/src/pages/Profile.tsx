@@ -183,7 +183,7 @@ const Profile = () => {
           {/* Photo Section */}
           <div className="gym-card p-10">
             <div className="text-center">
-              <h2 className="text-xl font-semibold mb-6">M S Fitness Studio</h2>
+              <h2 className="text-xl font-semibold mb-6">MINDSET FITNESS STUDIO</h2>
               
               <div className="flex justify-center mb-6">
                 <Avatar className="w-40 h-40 border-4 border-white shadow-xl">

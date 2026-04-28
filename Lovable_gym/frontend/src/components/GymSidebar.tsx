@@ -43,7 +43,7 @@ const GymLogo = () => (
             textShadow: '0 2px 4px rgba(0,0,0,0.3)'
           }}
         >
-          M★S Fitness
+          MINDSET FITNESS
         </span>
         <p className="text-xs text-cyan-100 font-medium tracking-wider">STUDIO</p>
       </div>

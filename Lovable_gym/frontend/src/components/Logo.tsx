@@ -16,7 +16,7 @@ export const Logo: React.FC<LogoProps> = ({ className = '', size = 'md' }) => {
     <div className={`${sizeClasses[size]} ${className}`}>
       <img 
         src="/logo.png" 
-        alt="M★S Fitness Studio Logo" 
+        alt="MINDSET FITNESS STUDIO Logo" 
         className="w-full h-full object-contain"
       />
     </div>

@@ -57,13 +57,18 @@ const calculateEndDate = (
 };
 
 const CLIENT_PAGE_SIZE = 500;
-const DEFAULT_GYM_NAME = "Mindset fitness stdio";
+const DEFAULT_GYM_NAME = "MINDSET FITNESS STUDIO";
 
 const resolveGymName = (name?: string | null) => {
   const incoming = String(name || "").trim();
   if (!incoming) return DEFAULT_GYM_NAME;
   const normalized = incoming.toLowerCase();
-  if (normalized === "ms fitness studio" || normalized === "ms gym") {
+  if (
+    normalized === "ms fitness studio" ||
+    normalized === "m★s fitness studio" ||
+    normalized === "ms gym" ||
+    normalized === "mindset fitness stdio"
+  ) {
     return DEFAULT_GYM_NAME;
   }
   return incoming;

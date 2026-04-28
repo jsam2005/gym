@@ -14,7 +14,7 @@ import {
 export const getProfileSettings = async (req: Request, res: Response): Promise<void> => {
   // Default profile data to return in case of any errors
   const defaultProfileData = {
-    gymName: 'MS Fitness Studio',
+    gymName: 'MINDSET FITNESS STUDIO',
     gymAddress: 'Food street, 1st floor, thalambur, Thalambur Rd, Navalur, Chennai, Tamil Nadu 600130',
     ownerName: 'Owner',
     ownerPhone: '70104 12237',
